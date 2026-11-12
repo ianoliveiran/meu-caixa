@@ -8,6 +8,15 @@
   let listeners = [];
   let syncing = false;
   let staleTried = false;
+  // Painéis já carregados, por mês: a tela aparece na hora e atualiza por trás.
+  const cache = {};
+  let curKey = null;
+  let lastMonth = null;
+  function remember(m, fresh) {
+    if (!m || !m.month) return;
+    if (m.month.isCurrent) curKey = m.month.key;
+    cache[m.month.key] = { m, t: fresh ? Date.now() : 0, json: JSON.stringify(m) };
+  }
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function readSession() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
@@ -39,10 +48,11 @@
   async function rpc(action, arg) {
     const t = await token();
     if (!t) { showLogin('Sua sessão terminou. Entre de novo.'); throw new Error('login'); }
-    const res = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify({ action, arg }) });
+    const res = await fetch('/api/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify({ action, arg, month: lastMonth }) });
     if (res.status === 401) { writeSession(null); showLogin('Sua sessão terminou. Entre de novo.'); throw new Error('login'); }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, message: data.error || 'O servidor não respondeu. Tente de novo.' };
+    if (data.model) { for (const k of Object.keys(cache)) delete cache[k]; remember(data.model, true); }
     return data.result;
   }
   const call = (action) => (arg) => rpc(action, arg);
@@ -58,7 +68,30 @@
 
   window.caixa = {
     getModel: async (month) => {
-      const m = await rpc('model:get', month);
+      lastMonth = month || null;
+      const key = month || curKey;
+      const hit = key && cache[key] && cache[key].m ? cache[key] : null;
+      let m;
+      if (hit && Date.now() - hit.t < 2000) {
+        m = hit.m;
+      } else if (hit) {
+        m = hit.m;
+        rpc('model:get', month).then((fresh) => {
+          if (!fresh || !fresh.month) return;
+          const changed = JSON.stringify(fresh) !== hit.json;
+          remember(fresh, true);
+          if (changed) notify({ syncing });
+        }).catch(() => {});
+      } else {
+        m = await rpc('model:get', month);
+        remember(m, false);
+      }
+      // Deixa o mês anterior pronto para quando você voltar um mês.
+      if (m && m.month && m.month.prev && !cache[m.month.prev]) {
+        const prev = m.month.prev;
+        cache[prev] = { m: null, t: 0, json: '' };
+        rpc('model:get', prev).then((x) => { if (x && x.month) remember(x, false); else delete cache[prev]; }).catch(() => { delete cache[prev]; });
+      }
       if (m && m.sync) {
         m.sync.syncing = syncing;
         if (m.sync.stale && !staleTried && !syncing) { staleTried = true; setTimeout(backgroundSync, 50); }

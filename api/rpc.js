@@ -51,8 +51,9 @@ async function getUser(token) {
   return res.json();
 }
 
-async function loadState(token, userId) {
-  const res = await supa('/rest/v1/app_state?select=data&user_id=eq.' + encodeURIComponent(userId), token);
+// Sem filtro por id: o RLS só devolve a linha do dono do token. Assim dá para buscar em paralelo com o login.
+async function loadState(token) {
+  const res = await supa('/rest/v1/app_state?select=data&limit=1', token);
   if (!res.ok) throw new Error('Não consegui ler seus dados (' + res.status + ').');
   const rows = await res.json();
   const base = emptyDb();
@@ -78,7 +79,7 @@ module.exports = async (req, res) => {
     if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Servidor sem configuração do Supabase.');
     const auth = String(req.headers.authorization || '');
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    const user = token ? await getUser(token) : null;
+    const [user, loaded] = token ? await Promise.all([getUser(token), loadState(token).catch((e) => e)]) : [null, null];
     if (!user || !user.id) {
       res.statusCode = 401;
       res.setHeader('Content-Type', 'application/json');
@@ -86,15 +87,19 @@ module.exports = async (req, res) => {
     }
     let body = req.body;
     if (typeof body === 'string') body = JSON.parse(body || '{}');
-    const { action, arg } = body || {};
+    const { action, arg, month } = body || {};
     const fn = actions[action];
     if (!fn) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'ação desconhecida' })); }
 
-    const db = await loadState(token, user.id);
-    const out = await fn(db, arg, { enc, dec });
+    if (loaded instanceof Error) throw loaded;
+    const db = loaded;
+    const env = { enc, dec };
+    const out = await fn(db, arg, env);
+    // Quem mudou algo já recebe o painel atualizado: economiza uma ida ao servidor.
+    const model = out.changed && action !== 'model:get' ? (await actions['model:get'](db, month, env)).result : undefined;
     if (out.changed) await saveState(token, user.id, db);
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ result: out.result }));
+    return res.end(JSON.stringify({ result: out.result, model }));
   } catch (e) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
