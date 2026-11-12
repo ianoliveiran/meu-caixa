@@ -99,7 +99,7 @@ Guia oficial: [github.com/pluggyai/meu-pluggy](https://github.com/pluggyai/meu-p
 
 - **Login fechado:** o cadastro só aceita os e-mails da tabela `private.allowed_emails`.
 - **Dados por usuário:** cada um tem uma linha em `app_state`, protegida por RLS. Cada usuário só lê e grava a própria.
-- **Chaves trancadas:** o Client Secret da Pluggy e a chave da OpenAI ficam criptografados (AES-256-GCM) com a `SECRET_KEY`, que só existe na Vercel. Elas nunca voltam para o navegador.
+- **Dados trancados:** os dados de cada conta ficam compactados e criptografados (AES-256-GCM) no banco, com a `SECRET_KEY` que só existe na Vercel. Quem abre o Supabase vê só um texto ilegível. As chaves da Pluggy e da OpenAI também, e nunca voltam para o navegador. **Guarde uma cópia da `SECRET_KEY`** (num gerenciador de senhas): sem ela, os dados não abrem mais.
 - **Agendador protegido:** ele usa um segredo gerado dentro do próprio banco (`private.cron_config`). As funções que leem os dados de todos só respondem com esse segredo.
 - **Servidor:** o site manda cabeçalhos de segurança (CSP, sem iframe, sem indexação).
 

@@ -3,39 +3,13 @@
 // Busca os bancos, vê o que tem de novo e manda as notificações.
 process.env.TZ = 'America/Sao_Paulo';
 
-const crypto = require('crypto');
+const { enc, dec, seal, unseal } = require('../src/seal');
 const { actions } = require('../src/actions');
 const { emptyDb } = require('../src/store');
 const push = require('../src/push');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || '';
-const SECRET_KEY = process.env.SECRET_KEY || '';
-
-function key() {
-  const k = Buffer.from(SECRET_KEY, 'base64');
-  if (k.length !== 32) throw new Error('SECRET_KEY ausente ou inválida no servidor.');
-  return k;
-}
-function enc(text) {
-  if (!text) return '';
-  const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv('aes-256-gcm', key(), iv);
-  const ct = Buffer.concat([c.update(String(text), 'utf8'), c.final()]);
-  return 'gcm:' + Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64');
-}
-function dec(value) {
-  if (!value || !String(value).startsWith('gcm:')) return '';
-  try {
-    const raw = Buffer.from(String(value).slice(4), 'base64');
-    const d = crypto.createDecipheriv('aes-256-gcm', key(), raw.subarray(0, 12));
-    d.setAuthTag(raw.subarray(12, 28));
-    return Buffer.concat([d.update(raw.subarray(28)), d.final()]).toString('utf8');
-  } catch (e) {
-    return '';
-  }
-}
-
 async function rpc(fn, args) {
   const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
     method: 'POST',
@@ -48,7 +22,7 @@ async function rpc(fn, args) {
 
 function hydrate(data) {
   const base = emptyDb();
-  const db = Object.assign(base, data || {});
+  const db = Object.assign(base, unseal(data));
   db.settings = Object.assign(emptyDb().settings, db.settings || {});
   return db;
 }
@@ -68,7 +42,7 @@ async function runUser(secret, row, vapid) {
     const { out, mark } = push.plan(db, now);
     const r = subs ? await push.send(db, out, vapid) : { enviadas: 0 };
     push.commit(db, mark, now);
-    const ok = await rpc('cron_save', { p_secret: secret, p_user: current.user_id, p_data: db, p_prev: current.updated_at });
+    const ok = await rpc('cron_save', { p_secret: secret, p_user: current.user_id, p_data: seal(db), p_prev: current.updated_at });
     if (ok) return { avisos: out.length, enviadas: r.enviadas };
     const again = (await rpc('cron_states', { p_secret: secret })).find((x) => x.user_id === current.user_id);
     if (!again) return { erro: 'sumiu' };
