@@ -181,6 +181,15 @@ const actions = {
     return { result: { ok: true }, changed: true };
   },
 
+  'fixado:toggle': async (db, x = {}) => {
+    const termo = String(x.termo || '').trim().slice(0, 60);
+    if (!termo) return { result: { ok: false, message: 'Não consegui identificar esse lançamento.' } };
+    const list = db.settings.fixados || [];
+    const tem = list.some((f) => f.termo === termo);
+    db.settings.fixados = tem ? list.filter((f) => f.termo !== termo) : list.concat([{ termo, nome: String(x.nome || termo).slice(0, 80) }]).slice(-20);
+    return { result: { ok: true, fixado: !tem }, changed: true };
+  },
+
   'lembrete:save': async (db, x = {}) => {
     const texto = String(x.texto || '').trim().slice(0, 200);
     if (!texto) return { result: { ok: false, message: 'Escreva o lembrete.' } };

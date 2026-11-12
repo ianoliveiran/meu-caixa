@@ -459,3 +459,29 @@ html.dark {
 }
 html.dark .toggle input:checked + span { background: var(--blue); }
 html.dark .cat-select, html.dark td .pill { filter: saturate(0.85) brightness(0.9); }
+
+/* Fixados */
+.fix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.fix-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fix-card.on { border-color: var(--blue); background: var(--blue-soft); }
+.fix-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fix-top b { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fix-big { display: flex; flex-direction: column; gap: 2px; }
+.fix-big span { font: 700 24px/1.1 var(--display); }
+.fix-big span.pos { color: var(--green-d); }
+.fix-big small, .fix-stats small { color: var(--muted); font-size: 12px; }
+.fix-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fix-stats div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fix-stats b { font-size: 13px; overflow-wrap: anywhere; }
+.fix-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; height: 64px; align-items: end; }
+.fix-bars div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; }
+.fix-bars span { width: 100%; max-width: 22px; background: var(--blue); border-radius: 4px; display: block; }
+.fix-bars small { font-size: 10px; color: var(--muted); }
+.fix-card .link { align-self: flex-start; }
+td.fix-cell { width: 84px; white-space: nowrap; }
+.pin-btn { color: var(--faint); }
+.pin-btn.on { color: var(--blue); }
+.main, .main > *, .panel { min-width: 0; }
+.table-wrap { max-width: 100%; }
+.table-wrap { position: relative; }
+.sr { left: 0; top: 0; }

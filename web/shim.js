@@ -132,6 +132,7 @@
     removeMeta: call('meta:remove'),
     saveLimites: call('limites:save'),
     saveLembrete: call('lembrete:save'),
+    toggleFixado: call('fixado:toggle'),
     // Notificações neste aparelho.
     pushState: async () => {
       const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);

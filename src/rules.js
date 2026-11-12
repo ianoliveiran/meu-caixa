@@ -620,6 +620,7 @@ function buildModel(db, opts) {
     assinaturasTotal: insights.assinaturasTotal || 0,
     pixAno: insights.pixAno || null,
     lembretes: insights.lembretes || null,
+    fixados: insights.fixados || [],
     bancos,
     manual: (db.manual || []).filter((x) => x.tipo !== 'credito').map((x) => Object.assign({}, x)),
     manualCredits: (db.manual || []).filter((x) => x.tipo === 'credito').map((x) => {

@@ -278,6 +278,32 @@ function buildInsights(h) {
     }
   }
 
+  // ----- Lançamentos fixados: quantas vezes se repete e quanto somou -----
+  const fix = (h.settings.fixados || []);
+  if (fix.length) {
+    const ano = now.getFullYear();
+    const ignorar = new Set(['card_payment', 'card_payment_in', 'transfer_in', 'transfer_out', 'internal']);
+    out.fixados = fix.map((f) => {
+      const txs = all.filter((t) => !ignorar.has(t.kind) && h.suggestTerm(t.description) === f.termo).sort((a, b) => a.date - b.date);
+      const soma = (l) => round2(l.reduce((s2, t) => s2 + t.value, 0));
+      const meses = [];
+      for (let i = 5; i >= 0; i--) {
+        const key = addMonths(nowKey, -i);
+        const l = txs.filter((t) => monthKey(t.date) === key);
+        meses.push({ key, mes: monthLabel(key).curto, qtd: l.length, total: soma(l) });
+      }
+      const doMes = txs.filter((t) => monthKey(t.date) === nowKey);
+      const doAno = txs.filter((t) => t.date.getFullYear() === ano);
+      return {
+        termo: f.termo, nome: f.nome || (txs.length ? txs[txs.length - 1].description : f.termo),
+        qtd: txs.length, total: soma(txs), media: txs.length ? round2(soma(txs) / txs.length) : 0,
+        primeira: txs.length ? txs[0].date.toISOString() : null, ultima: txs.length ? txs[txs.length - 1].date.toISOString() : null,
+        mesQtd: doMes.length, mesTotal: soma(doMes), anoQtd: doAno.length, anoTotal: soma(doAno), meses,
+        cat: txs.length ? txs[txs.length - 1].cat : 'outros', marca: txs.length ? h.label(txs[txs.length - 1]).marca : null
+      };
+    });
+  }
+
   // ----- Lembretes (criados por você ou pela IA a seu pedido) -----
   if (f.lembretes) {
     const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());

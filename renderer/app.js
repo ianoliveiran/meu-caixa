@@ -406,6 +406,23 @@
     return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + ((m.features || {}).lembretes && m.lembretes ? lembretesPanel(m) : '') + pixPanel + manualPanel + '</div>';
   }
 
+  function fixadosPanel(m) {
+    const f = m.fixados || [];
+    if (!f.length) return '';
+    const card = (x) => {
+      const mx = Math.max.apply(null, x.meses.map((y) => Math.abs(y.total)).concat([1]));
+      const pos = x.total > 0;
+      return '<div class="fix-card' + (S.termo === x.termo ? ' on' : '') + '">' +
+        '<div class="fix-top">' + mark(x.marca, x.cat, true) + '<b title="' + esc(x.nome) + '">' + esc(x.nome) + '</b>' +
+        '<button type="button" class="icon-btn ghost" data-act="fixar" data-v="' + esc(x.termo) + '" aria-label="Desafixar ' + esc(x.nome) + '" title="Desafixar">' + icon('close', 14, 2) + '</button></div>' +
+        '<div class="fix-big"><span class="' + (pos ? 'pos' : '') + '">' + (pos ? '+ ' : '') + brl(Math.abs(x.total)) + '</span><small>' + x.qtd + (x.qtd === 1 ? ' vez' : ' vezes') + ' no total' + (x.primeira ? ', desde ' + esc(dateBr(x.primeira)) : '') + '</small></div>' +
+        '<div class="fix-stats"><div><small>Este mês</small><b>' + brl(Math.abs(x.mesTotal)) + '</b><small>' + x.mesQtd + (x.mesQtd === 1 ? ' vez' : ' vezes') + '</small></div><div><small>No ano</small><b>' + brl(Math.abs(x.anoTotal)) + '</b><small>' + x.anoQtd + (x.anoQtd === 1 ? ' vez' : ' vezes') + '</small></div><div><small>Média por vez</small><b>' + brl(Math.abs(x.media)) + '</b></div></div>' +
+        '<div class="fix-bars" aria-label="Últimos 6 meses">' + x.meses.map((y) => '<div title="' + esc(y.mes) + ': ' + y.qtd + 'x, ' + brl(Math.abs(y.total)) + '"><span style="height:' + Math.max(y.qtd ? 6 : 2, Math.abs(y.total) / mx * 100).toFixed(1) + '%' + (y.qtd ? '' : ';opacity:.35') + '"></span><small>' + esc(y.mes) + '</small></div>').join('') + '</div>' +
+        '<button type="button" class="link" data-act="fixado-ver" data-v="' + esc(x.termo) + '">' + (S.termo === x.termo ? 'Mostrar todos os lançamentos' : 'Ver só esses lançamentos') + '</button></div>';
+    };
+    return '<section class="panel" aria-label="Fixados"><div class="head"><div><h2 class="h2">Fixados</h2><span class="sub">Quantas vezes cada um aparece e quanto somou, desde o primeiro lançamento guardado.</span></div></div><div class="fix-grid">' + f.map(card).join('') + '</div></section>';
+  }
+
   function lembreteQuando(x) {
     if (!x.data) return 'sem data';
     const dm = x.data.split('-').reverse().slice(0, 2).join('/');
@@ -614,6 +631,7 @@
       if (S.filtro === 'credito' && !/crédito$/.test(t.conta)) return false;
       if (S.filtro === 'movimentos' && !moves.includes(t.kind)) return false;
       if (S.cat && t.cat !== S.cat) return false;
+      if (S.termo && t.termo !== S.termo) return false;
       if (q && !(t.nome.toLowerCase().includes(q) || t.catLabel.toLowerCase().includes(q) || t.conta.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -627,9 +645,13 @@
     S.lancRows = rows;
     const canFix = (t) => ['expense', 'pix_credit'].includes(t.kind) && t.valor < 0;
     const options = (sel) => m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
-    return '<section class="panel" aria-label="Lançamentos">' +
+    const fixSet = new Set((m.fixados || []).map((f) => f.termo));
+    const pinBtn = (t) => t.termo ? '<button type="button" class="icon-btn ghost pin-btn' + (fixSet.has(t.termo) ? ' on' : '') + '" data-act="fixar" data-v="' + esc(t.termo) + '" data-nome="' + esc(t.nome.replace(/, \d+ de \d+$/, '')) + '" aria-pressed="' + fixSet.has(t.termo) + '" aria-label="' + (fixSet.has(t.termo) ? 'Desafixar ' : 'Fixar ') + esc(t.nome) + '" title="' + (fixSet.has(t.termo) ? 'Desafixar' : 'Fixar e acompanhar') + '">' + icon('pin', 15, 1.7) + '</button>' : '';
+    S.pinBtn = pinBtn;
+    return fixadosPanel(m) + '<section class="panel" aria-label="Lançamentos">' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px"><div class="chips">' +
       filters.map(([id, l]) => '<button type="button" class="chip' + (S.filtro === id ? ' on' : '') + '" data-act="filtro" data-v="' + id + '" aria-pressed="' + (S.filtro === id) + '">' + l + '</button>').join('') +
+      (S.termo ? '<button type="button" class="chip on" data-act="fixado-ver" data-v="' + esc(S.termo) + '" aria-label="Tirar o filtro do fixado">Só: ' + esc(((m.fixados || []).find((f) => f.termo === S.termo) || { nome: S.termo }).nome) + ' ✕</button>' : '') +
       (S.cat ? '<button type="button" class="chip on" data-act="cat-clear" aria-label="Tirar o filtro de categoria" style="background:' + catStyle(S.cat).fg + '">' + esc((m.cats.find((c) => c.id === S.cat) || { label: S.cat }).label) + ' ✕</button>' : '') +
       '</div><input class="search" id="busca" type="search" placeholder="Buscar" aria-label="Buscar lançamentos" value="' + esc(S.q) + '"></div>' +
       '<div class="lanc-tools"><label class="mini-sel"><span>Categoria</span><select id="lanc-cat"><option value="">Todas</option>' + m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === S.cat ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>' +
@@ -649,7 +671,7 @@
               : '<select class="cat-select" data-tx="' + esc(t.id) + '" aria-label="Categoria de ' + esc(t.nome) + '" style="background:' + st.bg + ';color:' + st.fg + '">' + options(t.cat) + '</select>') + '</td>' +
             '<td><span style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:' + t.bankCor + '"></span>' + esc(t.conta) + '</span></td>' +
             '<td style="font-weight:700;white-space:nowrap;color:' + (t.valor > 0 ? 'var(--green-d)' : 'var(--ink)') + '">' + signedBrl(t.valor) + '</td>' +
-            '<td class="fix-cell">' + (canFix(t) ? '<button type="button" class="icon-btn ghost" data-act="tx-fixa" data-v="' + esc(t.id) + '" aria-label="Virar despesa fixa: ' + esc(t.nome) + '" title="Virar despesa fixa">' + icon('contas', 16) + '</button>' : '') + '</td></tr>';
+            '<td class="fix-cell">' + S.pinBtn(t) + (canFix(t) ? '<button type="button" class="icon-btn ghost" data-act="tx-fixa" data-v="' + esc(t.id) + '" aria-label="Virar despesa fixa: ' + esc(t.nome) + '" title="Virar despesa fixa">' + icon('contas', 16) + '</button>' : '') + '</td></tr>';
     }
   }
 
@@ -1064,6 +1086,13 @@
       case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; saveLanc(); try { history.replaceState(null, '', '#lanc'); } catch (err) { /* sem histórico */ } window.scrollTo(0, 0); render(); break;
       case 'cat-clear': S.cat = null; saveLanc(); render(); break;
       case 'dlg-meta': S.dialog = { type: 'meta', id: v || null }; S.msg.dlg = null; render(); break;
+      case 'fixar': {
+        const r = await api.toggleFixado({ termo: v, nome: el.dataset.nome });
+        if (r && r.ok) toast(r.fixado ? 'Fixado no topo de Lançamentos.' : 'Desafixado.');
+        if (r && !r.fixado && S.termo === v) S.termo = null;
+        await load(); break;
+      }
+      case 'fixado-ver': S.termo = S.termo === v ? null : v; S.month = S.termo ? S.month : S.month; render(); break;
       case 'dlg-lembrete': S.dialog = { type: 'lembrete' }; S.msg.dlg = null; render(); break;
       case 'lembrete-done': el.disabled = true; await api.doneLembrete(v); toast('Lembrete concluído.'); await load(); break;
       case 'dlg-limites': S.dialog = { type: 'limites' }; S.msg.dlg = null; render(); break;
