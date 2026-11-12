@@ -12,6 +12,7 @@
     day: null,
     showPaid: false,
     filtro: 'todos',
+    ordem: 'data',
     cat: null,
     q: '',
     menu: false,
@@ -414,15 +415,28 @@
       if (q && !(t.nome.toLowerCase().includes(q) || t.catLabel.toLowerCase().includes(q) || t.conta.toLowerCase().includes(q))) return false;
       return true;
     });
+    if (S.ordem === 'valor') rows.sort((a, b) => a.valor - b.valor);
+    const groups = [];
+    if (S.ordem === 'categoria') {
+      const by = {};
+      for (const t of rows) { if (!by[t.cat]) { by[t.cat] = { cat: t.cat, label: t.catLabel, rows: [], total: 0 }; groups.push(by[t.cat]); } by[t.cat].rows.push(t); by[t.cat].total += t.valor; }
+      groups.sort((a, b) => a.total - b.total);
+    }
+    const canFix = (t) => ['expense', 'pix_credit'].includes(t.kind) && t.valor < 0;
     const options = (sel) => m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
     return '<section class="panel" aria-label="Lançamentos">' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px"><div class="chips">' +
       filters.map(([id, l]) => '<button type="button" class="chip' + (S.filtro === id ? ' on' : '') + '" data-act="filtro" data-v="' + id + '" aria-pressed="' + (S.filtro === id) + '">' + l + '</button>').join('') +
       (S.cat ? '<button type="button" class="chip on" data-act="cat-clear" aria-label="Tirar o filtro de categoria" style="background:' + catStyle(S.cat).fg + '">' + esc((m.cats.find((c) => c.id === S.cat) || { label: S.cat }).label) + ' ✕</button>' : '') +
       '</div><input class="search" id="busca" type="search" placeholder="Buscar" aria-label="Buscar lançamentos" value="' + esc(S.q) + '"></div>' +
+      '<div class="lanc-tools"><label class="mini-sel"><span>Categoria</span><select id="lanc-cat"><option value="">Todas</option>' + m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === S.cat ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>' +
+      '<label class="mini-sel"><span>Ordenar por</span><select id="lanc-ordem">' + [['data', 'Data'], ['valor', 'Maior valor'], ['categoria', 'Categoria (agrupado)']].map(([k, l]) => '<option value="' + k + '"' + (S.ordem === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></div>' +
       '<span class="sub">' + rows.length + (rows.length === 1 ? ' lançamento' : ' lançamentos') + '. Para mudar a categoria, clique nela.</span>' +
-      (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Data</th><th>Categoria</th><th>Conta ou cartão</th><th>Valor</th></tr></thead><tbody>' +
-        rows.map((t) => {
+      (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Data</th><th>Categoria</th><th>Conta ou cartão</th><th>Valor</th><th><span class="sr">Despesa fixa</span></th></tr></thead><tbody>' +
+        (S.ordem === 'categoria' ? groups.map((g) => '<tr class="grp"><td colspan="6"><span class="desc">' + tile(g.cat, true) + esc(g.label) + ' <span class="sub">· ' + g.rows.length + (g.rows.length === 1 ? ' lançamento' : ' lançamentos') + '</span></span><b>' + signedBrl(g.total) + '</b></td></tr>' + g.rows.map(rowHtml).join('')).join('') : rows.map(rowHtml).join('')) + '</tbody></table></div>'
+        : '<div class="empty-state">Nada encontrado neste mês.</div>') +
+      '</section>';
+    function rowHtml(t) {
           const st = catStyle(t.cat);
           const fixed = ['card_payment', 'card_payment_in', 'transfer_in', 'transfer_out'].includes(t.kind);
           return '<tr><td><span class="desc">' + mark(t.marca, t.cat, true) + '<span>' + esc(t.nome) + (t.tag ? '<br><span class="sub">' + esc(t.tag) + '</span>' : '') + '</span></span></td>' +
@@ -430,10 +444,9 @@
             '<td>' + (fixed ? '<span class="pill" style="background:' + st.bg + ';color:' + st.fg + '">' + esc(t.catLabel) + '</span>'
               : '<select class="cat-select" data-tx="' + esc(t.id) + '" aria-label="Categoria de ' + esc(t.nome) + '" style="background:' + st.bg + ';color:' + st.fg + '">' + options(t.cat) + '</select>') + '</td>' +
             '<td><span style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:' + t.bankCor + '"></span>' + esc(t.conta) + '</span></td>' +
-            '<td style="font-weight:700;white-space:nowrap;color:' + (t.valor > 0 ? '#15803d' : '#0f172a') + '">' + signedBrl(t.valor) + '</td></tr>';
-        }).join('') + '</tbody></table></div>'
-        : '<div class="empty-state">Nada encontrado neste mês.</div>') +
-      '</section>';
+            '<td style="font-weight:700;white-space:nowrap;color:' + (t.valor > 0 ? '#15803d' : '#0f172a') + '">' + signedBrl(t.valor) + '</td>' +
+            '<td class="fix-cell">' + (canFix(t) ? '<button type="button" class="icon-btn ghost" data-act="tx-fixa" data-v="' + esc(t.id) + '" aria-label="Virar despesa fixa: ' + esc(t.nome) + '" title="Virar despesa fixa">' + icon('contas', 16) + '</button>' : '') + '</td></tr>';
+    }
   }
 
   // ---------- Cartões ----------
@@ -627,9 +640,9 @@
     if (!d) return '';
     let body = '';
     if (d.type === 'bill') {
-      const b = d.id ? m.settings.bills.find((x) => x.id === d.id) || {} : {};
+      const b = d.id ? m.settings.bills.find((x) => x.id === d.id) || {} : (d.prefill || {});
       const fq = b.freq || d.freq || 'mensal';
-      body = '<h2 class="h2" id="dlg-t">' + (fq === 'unica' ? (d.id ? 'Editar conta a pagar' : 'Nova conta a pagar') : (d.id ? 'Editar despesa fixa' : 'Nova despesa fixa')) + '</h2>' +
+      body = '<h2 class="h2" id="dlg-t">' + (fq === 'unica' ? (d.id ? 'Editar conta a pagar' : 'Nova conta a pagar') : (d.id ? 'Editar despesa fixa' : 'Nova despesa fixa')) + '</h2>' + (d.prefill ? '<span class="sub">Preenchi a partir de “' + esc(d.prefill.origem) + '”. Confira e salve.</span>' : '') +
         '<form data-form="bill" class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><input type="hidden" name="id" value="' + esc(b.id || '') + '">' +
         '<div class="field sug-wrap" style="grid-column:1/-1"><label for="bb">Buscar no seu extrato</label><input id="bb" name="busca" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="sug" aria-expanded="false" value="' + esc(b.busca || '') + '" placeholder="fulana de tal, enel"><div class="sug" id="sug" role="listbox" hidden></div><small>Digite o nome de quem você paga e escolha da lista: o app preenche o resto e você só confere. Quando esse pagamento aparecer no mês, a despesa fica paga sozinha.</small></div>' +
         '<div class="field"><label for="bn">Nome</label><input id="bn" name="nome" required value="' + esc(b.nome || '') + '" placeholder="Apartamento"></div>' +
@@ -768,6 +781,18 @@
       case 'dlg-credit': S.dialog = { type: 'credit', id: v || null }; S.msg.dlg = null; render(); break;
       case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; window.scrollTo(0, 0); render(); break;
       case 'cat-clear': S.cat = null; render(); break;
+      case 'tx-fixa': {
+        const t = S.m.lancamentos.find((x) => x.id === v);
+        if (!t) break;
+        const ben = (S.m.beneficiarios || []).find((b) => b.termo === t.termo) || {};
+        const iconOk = BILL_ICONS.some(([k]) => k === t.cat) ? t.cat : 'contas';
+        S.dialog = { type: 'bill', id: null, freq: ben.semanal ? 'semanal' : 'mensal', prefill: {
+          origem: t.nome, busca: t.termo || '', nome: ben.nomeLimpo || t.nome, valor: Math.abs(t.valor),
+          dia: Number(String(t.data).split('/')[0]) || '', diaSemana: ben.diaSemana, icon: iconOk,
+          pagamento: /crédito$/.test(t.conta) ? 'cartao' : 'conta', freq: ben.semanal ? 'semanal' : 'mensal'
+        } };
+        S.msg.dlg = null; render(); break;
+      }
       case 'dlg-close': S.dialog = null; render(); break;
       case 'dlg-backdrop': if (e.target === el) { S.dialog = null; render(); } break;
       case 'bill-remove': {
@@ -939,6 +964,8 @@
       return;
     }
     if (e.target.id === 'bf') { toggleFreq(e.target.value); return; }
+    if (e.target.id === 'lanc-cat') { S.cat = e.target.value || null; render(); return; }
+    if (e.target.id === 'lanc-ordem') { S.ordem = e.target.value; render(); return; }
     const sel = e.target.closest('select.cat-select');
     if (sel) {
       const t = S.m.lancamentos.find((x) => x.id === sel.dataset.tx);

@@ -289,3 +289,13 @@ td .desc { display: flex; align-items: center; gap: 12px; font-weight: 600; }
   .bub { max-width: 92%; font-size: 15px; }
 }
 .chat-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-d); margin-bottom: 4px; }
+
+.lanc-tools { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.mini-sel { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.mini-sel select { min-height: 36px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--panel); color: var(--ink); font: 13px var(--body); }
+tr.grp td { background: #f8fafc; padding-top: 12px; padding-bottom: 12px; }
+tr.grp td { text-align: left; }
+tr.grp td > .desc + b, tr.grp td b { float: right; }
+tr.grp .desc { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
+td.fix-cell { width: 44px; padding-left: 4px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
