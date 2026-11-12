@@ -5,7 +5,7 @@
 
 const FEATURE_DEFAULTS = {
   metas: true, limites: true, parcelas: true, assinaturas: true, alertas: true,
-  pixAno: true, resumo: true, grafico: true, semanal: false
+  pixAno: true, resumo: true, grafico: true, lembretes: true
 };
 
 const DAY = 86400000;
@@ -278,10 +278,20 @@ function buildInsights(h) {
     }
   }
 
-  // ----- Resumo semanal da IA: avisa quando um novo ficou pronto -----
-  if (f.semanal && h.db.weekly && h.db.weekly.at) {
-    const when = +new Date(h.db.weekly.at);
-    if (now - when < 7 * DAY) h.avisos.push({ id: 'semanal:' + h.db.weekly.at, tipo: 'semanal', titulo: 'Sua conversa da semana chegou', texto: 'Resumo da semana na aba Conversar', valor: null, cat: 'renda', quando: when, novo: when > h.seenAt });
+  // ----- Lembretes (criados por você ou pela IA a seu pedido) -----
+  if (f.lembretes) {
+    const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const lista = (h.db.lembretes || []).filter((x) => !x.feito).map((x) => {
+      const d = x.data ? new Date(x.data + 'T08:00:00') : null;
+      const dias = d ? Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - hoje) / DAY) : null;
+      return { id: x.id, texto: x.texto, data: x.data || '', dias, origem: x.origem || 'manual' };
+    }).sort((a, b) => (a.data || '9999') < (b.data || '9999') ? -1 : 1);
+    out.lembretes = lista;
+    for (const x of lista) {
+      if (x.dias === null || x.dias > 0) continue;
+      const when = Math.min(+now, +new Date(x.data + 'T08:00:00'));
+      h.avisos.push({ id: 'lembrete:' + x.id, tipo: 'lembrete', titulo: x.texto, texto: x.dias === 0 ? 'Lembrete para hoje' : 'Lembrete de ' + x.data.split('-').reverse().slice(0, 2).join('/'), valor: null, cat: 'calendar', quando: when, novo: when > h.seenAt });
+    }
   }
 
   return out;

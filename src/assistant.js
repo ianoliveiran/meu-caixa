@@ -60,6 +60,11 @@ function buildContext(db, now) {
     for (const a of m.assinaturas) L.push('- ' + a.nome + ': ' + brl(a.valor) + ' por mês' + (a.subiu ? ' (subiu de ' + brl(a.subiu.de) + ')' : ''));
   }
   L.push('');
+  L.push('## Lembretes que ele tem');
+  const lem = (db.lembretes || []).filter((x) => !x.feito);
+  if (lem.length) for (const x of lem) L.push('- [id ' + x.id + '] ' + x.texto + (x.data ? ' (dia ' + x.data.split('-').reverse().join('/') + ')' : ' (sem data)'));
+  else L.push('Nenhum.');
+  L.push('');
   L.push('## Contas e despesas fixas deste mês');
   for (const b of m.bills) L.push('- ' + b.nome + ': ' + brl(b.valor) + (b.dia ? ', dia ' + b.dia : '') + (b.semanal ? ', toda semana' : '') + ' — ' + (b.status ? b.status.texto : (b.paid ? 'paga' : 'em aberto')) + '.');
   L.push('');
@@ -86,12 +91,29 @@ function buildContext(db, now) {
   return L.join('\n');
 }
 
+const TOOLS = [
+  {
+    type: 'function', name: 'criar_lembrete', strict: true,
+    description: 'Cria um lembrete no app dele. Use só quando ele pedir um lembrete ou aceitar a sua sugestão de criar um.',
+    parameters: { type: 'object', additionalProperties: false, required: ['texto', 'data'], properties: {
+      texto: { type: 'string', description: 'O lembrete, curto e direto, como "Pagar o IPVA" ou "Cancelar o Crunchyroll".' },
+      data: { type: ['string', 'null'], description: 'Dia do lembrete no formato AAAA-MM-DD, ou null se não tiver data.' }
+    } }
+  },
+  {
+    type: 'function', name: 'apagar_lembrete', strict: true,
+    description: 'Apaga um lembrete que já existe, quando ele pedir ou disser que já fez.',
+    parameters: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', description: 'O id do lembrete, da lista de lembretes.' } } }
+  }
+];
+
 const INSTRUCTIONS = [
   'Você é o assistente financeiro pessoal do dono deste app (Meu Cofrin), um brasileiro solteiro.',
   'Converse em português do Brasil, de um jeito direto e amigável, como um amigo que entende de finanças. Respostas curtas por padrão; aprofunde quando pedirem.',
   'Use os dados abaixo, que vêm do Open Finance dele e são atualizados uma vez por dia. Cite números concretos e faça as contas certinho. Se faltar dado, diga o que falta em vez de inventar.',
   'Ajude a tirar dúvidas, entender para onde vai o dinheiro, planejar metas (como juntar para o apartamento), montar orçamento e comparar opções.',
   'Não recomende ativos específicos como se fosse uma ordem; explique as opções e os riscos para ele decidir. Lembre que você não é consultor financeiro certificado quando o assunto for investimento ou decisão grande.',
+  'Lembretes: você pode criar e apagar lembretes no app dele com as ferramentas. Crie quando ele pedir. Quando surgir algo com data que vale lembrar (um vencimento, cancelar uma assinatura, rever um gasto), você pode sugerir criar um lembrete, mas só cria se ele aceitar. Não sugira lembrete toda hora: só quando fizer sentido de verdade.',
   'Formatação: texto simples, parágrafos curtos, listas com "- " e **negrito** só no essencial. Sem tabelas e sem títulos com #. Valores no formato R$ 1.234,56.'
 ].join('\n');
 
@@ -104,8 +126,42 @@ function extractText(data) {
   return parts.join('\n').trim();
 }
 
+// Roda a conversa deixando a IA usar as ferramentas de lembrete (até 3 rodadas).
+async function callWithTools(key, model, instructions, input, db) {
+  const acoes = [];
+  let conv = input.slice();
+  for (let round = 0; round < 3; round++) {
+    const data = await callOpenAIRaw(key, model, instructions, conv, TOOLS);
+    const calls = ((data && data.output) || []).filter((o) => o.type === 'function_call');
+    if (!calls.length) return { text: extractText(data), acoes };
+    conv = conv.concat(data.output);
+    for (const c of calls) {
+      let args = {};
+      try { args = JSON.parse(c.arguments || '{}'); } catch (e) { /* argumentos inválidos */ }
+      let out = 'erro';
+      if (c.name === 'criar_lembrete' && args.texto) {
+        const data = /^\d{4}-\d{2}-\d{2}$/.test(args.data || '') ? args.data : '';
+        const l = { id: 'l-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), texto: String(args.texto).slice(0, 200), data, criado: new Date().toISOString(), origem: 'ia', feito: false };
+        db.lembretes = (db.lembretes || []).concat([l]);
+        acoes.push({ tipo: 'criou', texto: l.texto, data });
+        out = 'Lembrete criado com id ' + l.id + '.';
+      } else if (c.name === 'apagar_lembrete') {
+        const l = (db.lembretes || []).find((x) => x.id === args.id);
+        if (l) { db.lembretes = db.lembretes.filter((x) => x.id !== args.id); acoes.push({ tipo: 'apagou', texto: l.texto }); out = 'Apagado.'; } else out = 'Não achei esse lembrete.';
+      }
+      conv.push({ type: 'function_call_output', call_id: c.call_id, output: out });
+    }
+  }
+  return { text: 'Pronto.', acoes };
+}
+
 async function callOpenAI(key, model, instructions, input) {
+  return extractText(await callOpenAIRaw(key, model, instructions, input));
+}
+
+async function callOpenAIRaw(key, model, instructions, input, tools) {
   const body = { model, instructions, input, max_output_tokens: 4000 };
+  if (tools) body.tools = tools;
   if (/^(gpt-5|o\d)/.test(model)) body.reasoning = { effort: 'low' };
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -119,7 +175,7 @@ async function callOpenAI(key, model, instructions, input) {
     err.code = data.error && data.error.code;
     throw err;
   }
-  return extractText(data);
+  return data;
 }
 
 function friendly(err) {
@@ -129,21 +185,53 @@ function friendly(err) {
   return 'A OpenAI não respondeu: ' + msg;
 }
 
-async function chat(db, text, env) {
+// Várias conversas: db.chats = [{ id, titulo, criada, atualizada, msgs }]. A conversa antiga (db.chat) vira a primeira.
+const MAX_CONVERSAS = 40;
+function migrateChats(db) {
+  if (!Array.isArray(db.chats)) db.chats = [];
+  if (Array.isArray(db.chat) && db.chat.length) {
+    const first = db.chat.find((x) => x.role === 'user');
+    const at = db.chat[0].at || new Date().toISOString();
+    db.chats.unshift({ id: 'c-primeira', titulo: tituloDe(first ? first.content : 'Conversa'), criada: at, atualizada: db.chat[db.chat.length - 1].at || at, msgs: db.chat });
+    if (!db.chatAtual) db.chatAtual = 'c-primeira';
+  }
+  delete db.chat;
+  return db.chats;
+}
+function tituloDe(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  return t.length > 48 ? t.slice(0, 46).replace(/\s+\S*$/, '') + '…' : (t || 'Conversa');
+}
+function novaConversa(db, titulo) {
+  const at = new Date().toISOString();
+  const c = { id: 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), titulo: titulo || 'Nova conversa', criada: at, atualizada: at, msgs: [] };
+  db.chats.unshift(c);
+  db.chats.splice(MAX_CONVERSAS);
+  return c;
+}
+
+async function chat(db, arg, env) {
+  const text0 = typeof arg === 'string' ? arg : (arg && arg.text);
+  const convId = typeof arg === 'object' && arg ? arg.conversa : null;
+  migrateChats(db);
   const key = env.dec(db.secrets && db.secrets.openai);
   if (!key) return { ok: false, message: 'Cole sua chave da OpenAI em Bancos e ajustes.' };
-  text = String(text || '').trim().slice(0, 4000);
+  const text = String(text0 || '').trim().slice(0, 4000);
   if (!text) return { ok: false, message: 'Escreva uma pergunta.' };
-  const history = (db.chat || []).slice(-MAX_SENT).map((x) => ({ role: x.role, content: x.content }));
+  let conv = convId ? db.chats.find((c) => c.id === convId) : null;
+  const history = (conv ? conv.msgs : []).slice(-MAX_SENT).map((x) => ({ role: x.role, content: x.content }));
   const input = history.concat([{ role: 'user', content: text }]);
   const instructions = INSTRUCTIONS + '\n\n# Dados financeiros dele\n' + buildContext(db);
   const chosen = (db.settings.ai && db.settings.ai.model) || DEFAULT_MODEL;
   const tries = [chosen].concat(FALLBACK_MODELS.filter((x) => x !== chosen));
   let reply = '';
+  let acoes = [];
   let used = chosen;
+  const before = JSON.stringify(db.lembretes || []);
   for (const model of tries) {
     try {
-      reply = await callOpenAI(key, model, instructions, input);
+      const r = await callWithTools(key, model, instructions, input, db);
+      reply = r.text; acoes = r.acoes;
       used = model;
       break;
     } catch (err) {
@@ -151,33 +239,17 @@ async function chat(db, text, env) {
       if (!missing || model === tries[tries.length - 1]) return { ok: false, message: friendly(err) };
     }
   }
-  if (!reply) return { ok: false, message: 'A OpenAI devolveu uma resposta vazia. Tente de novo.' };
+  if (!reply && acoes.length) reply = 'Pronto.';
+  if (!reply) { db.lembretes = JSON.parse(before); return { ok: false, message: 'A OpenAI devolveu uma resposta vazia. Tente de novo.' }; }
   const at = new Date().toISOString();
-  db.chat = (db.chat || []).concat([{ role: 'user', content: text, at }, { role: 'assistant', content: reply, at }]).slice(-MAX_SAVED);
+  if (!conv) conv = novaConversa(db, tituloDe(text));
+  else if (!conv.msgs.length || conv.titulo === 'Nova conversa') conv.titulo = tituloDe(text);
+  conv.msgs = conv.msgs.concat([{ role: 'user', content: text, at }, Object.assign({ role: 'assistant', content: reply, at }, acoes.length ? { acoes } : {})]).slice(-MAX_SAVED);
+  conv.atualizada = at;
+  db.chats = [conv].concat(db.chats.filter((c) => c !== conv));
+  db.chatAtual = conv.id;
   if (used !== chosen) db.settings.ai = Object.assign({}, db.settings.ai, { model: used });
-  return { ok: true, reply };
-}
-
-// Resumo da semana que fechou, escrito pela IA e guardado na conversa.
-async function weekly(db, env) {
-  const key = env.dec(db.secrets && db.secrets.openai);
-  if (!key) return { ok: false, message: 'Sem chave da OpenAI.' };
-  const instructions = INSTRUCTIONS + '\n\n# Dados financeiros dele\n' + buildContext(db);
-  const pedido = 'Escreva a "conversa da semana": um resumo curto da semana que acabou (segunda a domingo), olhando os lançamentos. Diga quanto gastou na semana, onde mais gastou, se algo fugiu do normal, como está o mês até agora e uma sugestão prática para esta semana. Comece com "Resumo da semana:".';
-  const chosen = (db.settings.ai && db.settings.ai.model) || DEFAULT_MODEL;
-  const tries = [chosen].concat(FALLBACK_MODELS.filter((x) => x !== chosen));
-  let reply = '';
-  for (const model of tries) {
-    try { reply = await callOpenAI(key, model, instructions, [{ role: 'user', content: pedido }]); break; } catch (err) {
-      const missing = err.status === 404 || err.code === 'model_not_found' || /model/i.test(err.message) && err.status === 400;
-      if (!missing || model === tries[tries.length - 1]) return { ok: false, message: friendly(err) };
-    }
-  }
-  if (!reply) return { ok: false, message: 'Resposta vazia.' };
-  const at = new Date().toISOString();
-  db.chat = (db.chat || []).concat([{ role: 'assistant', content: reply, at, weekly: true }]).slice(-MAX_SAVED);
-  db.weekly = { at };
-  return { ok: true };
+  return { ok: true, reply, conversa: conv.id };
 }
 
 function mondayStart(now) {
@@ -194,4 +266,4 @@ async function testKey(key) {
   if (!res.ok) throw new Error('Não consegui falar com a OpenAI (' + res.status + ').');
 }
 
-module.exports = { buildContext, chat, weekly, mondayStart, testKey, DEFAULT_MODEL };
+module.exports = { buildContext, chat, migrateChats, mondayStart, testKey, DEFAULT_MODEL };

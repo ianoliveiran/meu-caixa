@@ -152,7 +152,7 @@
     const item = (a) => '<button type="button" class="notif-item' + (a.novo ? ' novo' : '') + '" data-act="notif-open" data-v="' + esc(a.id) + '">' +
       (a.tipo === 'conta' || a.tipo === 'limite' || a.tipo === 'alerta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? '#fff1f2' : '#fef3c7') + ';color:' + (a.atrasada ? '#be123c' : '#b45309') + '">' + icon(a.tipo === 'conta' && !a.atrasada ? 'calendar' : 'alert', 15, 1.8) + '</span>'
         : a.tipo === 'resumo' ? '<span class="tile s" aria-hidden="true" style="background:#dcfce7;color:#15803d">' + icon('trend', 15, 1.8) + '</span>'
-        : a.tipo === 'semanal' ? '<span class="tile s" aria-hidden="true" style="background:var(--blue-soft);color:var(--blue-d)">' + icon('chat', 15, 1.8) + '</span>'
+        : a.tipo === 'lembrete' ? '<span class="tile s" aria-hidden="true" style="background:var(--blue-soft);color:var(--blue-d)">' + icon('bell', 15, 1.8) + '</span>'
         : mark(a.marca, a.cat, true)) +
       '<span class="grow"><b>' + esc(a.titulo) + '</b><small>' + esc(a.texto) + (a.tipo === 'tx' ? ' · chegou ' + esc(when(new Date(a.quando).toISOString())) : '') + '</small></span>' +
       (a.valor === null || a.valor === undefined ? '' : '<span class="val' + (a.valor > 0 ? ' pos' : '') + '">' + (a.tipo === 'resumo' ? (a.valor >= 0 ? 'sobrou ' : 'faltou ') + brl(Math.abs(a.valor)) : signedBrl(a.valor)) + '</span>') + '</button>';
@@ -178,6 +178,7 @@
       (!m.month.isCurrent && monthNav ? '<button type="button" class="btn small" data-act="month" data-v="">Voltar para hoje</button>' : '') +
       (m.sync.demo ? '<span class="pill amber">Dados de exemplo</span>' : '') +
       '</div><div class="right">' +
+      '<button type="button" class="icon-btn out" data-act="tema-toggle" aria-label="' + (document.documentElement.classList.contains('dark') ? 'Usar modo claro' : 'Usar modo escuro') + '" title="' + (document.documentElement.classList.contains('dark') ? 'Modo claro' : 'Modo escuro') + '">' + icon(document.documentElement.classList.contains('dark') ? 'sun' : 'moon', 18, 1.6) + '</button>' +
       '<button type="button" class="icon-btn out" data-act="hide" aria-pressed="' + S.hide + '" aria-label="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '" title="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '">' + icon(S.hide ? 'eyeoff' : 'eye') + '</button>' +
       '<div class="dropdown"><button type="button" class="icon-btn out" data-act="notif" aria-expanded="' + !!S.notif + '" aria-label="Notificações' + (m.novas ? ', ' + m.novas + (m.novas === 1 ? ' nova' : ' novas') : '') + '">' + icon('bell') + (m.novas ? '<span class="badge">' + m.novas + '</span>' : '') + '</button>' + (S.notif ? notifPanel(m) : '') + '</div>' +
       '<button type="button" class="icon-btn out" data-act="sync" aria-label="Sincronizar agora" title="' + (m.sync.bancosEm ? 'Bancos atualizaram ' + esc(when(m.sync.bancosEm)) + '. Clique para conferir se chegou algo novo.' : 'Sincronizar agora') + '"' + (S.syncing || m.sync.demo ? ' disabled' : '') + '>' + icon('sync', 18, 1.6).replace('<svg', S.syncing ? '<svg class="spin"' : '<svg') + '</button>' +
@@ -402,7 +403,25 @@
         (m.pixAno && m.pixAno.qtd ? '<div class="tiles"><div>' + tile('pix') + '<div><span>Pix no crédito no ano</span><b>' + brl(m.pixAno.total) + '</b></div></div><div>' + tile('taxas') + '<div><span>Taxas no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div>' : '') +
         '<span class="sub">As taxas são as linhas de juros, IOF e tarifa que aparecem nas faturas dos cartões.</span></section>'
       : (m.pixAno && m.pixAno.qtd ? '<section class="panel" aria-label="Pix no crédito no ano"><div class="head"><div><h2 class="h2">Pix no crédito em ' + m.pixAno.ano + '</h2><span class="sub">' + m.pixAno.qtd + ' Pix no crédito no ano</span>' + bigNum(m.pixAno.total) + '</div>' + ill.lightning + '</div><div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div></section>' : '');
-    return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + pixPanel + manualPanel + '</div>';
+    return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + ((m.features || {}).lembretes && m.lembretes ? lembretesPanel(m) : '') + pixPanel + manualPanel + '</div>';
+  }
+
+  function lembreteQuando(x) {
+    if (!x.data) return 'sem data';
+    const dm = x.data.split('-').reverse().slice(0, 2).join('/');
+    if (x.dias < 0) return 'era para ' + dm;
+    if (x.dias === 0) return 'hoje';
+    if (x.dias === 1) return 'amanhã';
+    return dm;
+  }
+
+  function lembretesPanel(m) {
+    const l = m.lembretes || [];
+    return '<section class="panel" aria-label="Lembretes"><div class="head"><div><h2 class="h2">Lembretes</h2><span class="sub">' + (l.length ? 'Na data, eles aparecem no sininho. Marque quando fizer.' : 'Crie aqui ou peça na aba Conversar: “me lembra de cancelar a assinatura dia 20”.') + '</span></div>' +
+      (m.sync.web ? '<button type="button" class="btn small" data-act="dlg-lembrete">' + icon('plus', 14, 2) + 'Novo</button>' : '') + '</div>' +
+      (l.length ? '<div class="list">' + l.map((x) => '<div class="li lem' + (x.dias !== null && x.dias <= 0 ? ' due' : '') + '">' +
+        (m.sync.web ? '<button type="button" class="check-btn" data-act="lembrete-done" data-v="' + esc(x.id) + '" aria-label="Feito: ' + esc(x.texto) + '" title="Feito">' + icon('check', 14, 2.2) + '</button>' : '') +
+        '<div class="grow"><span class="t">' + esc(x.texto) + '</span><span class="m">' + esc(lembreteQuando(x)) + (x.origem === 'ia' ? ' · criado pelo assistente' : '') + '</span></div></div>').join('') + '</div>' : '') + '</section>';
   }
 
   function metasPanel(m) {
@@ -496,13 +515,13 @@
     ['pixAno', 'Pix no crédito no ano', 'Quanto você já pagou de juros e IOF no ano.'],
     ['resumo', 'Resumo do mês', 'No começo de cada mês, um resumo do mês que fechou no sininho.'],
     ['grafico', 'Gráfico dos últimos meses', 'Entradas e saídas mês a mês na Visão geral.'],
-    ['semanal', 'Conversa da semana', 'Toda segunda, o assistente escreve um resumo da sua semana na aba Conversar. Usa crédito da OpenAI.']
+    ['lembretes', 'Lembretes', 'Lembretes que você cria ou pede para o assistente criar. Na data, eles aparecem no sininho.']
   ];
 
   function featuresPanel(m) {
     const f = m.features || {};
     return '<section class="panel" aria-label="O que aparece no app"><div><h2 class="h2">O que aparece no app</h2><span class="sub">Desligue o que você não quer ver. Dá para ligar de novo quando quiser, e nada do que você cadastrou se perde.</span></div>' +
-      '<div class="feat-list">' + FEATURES.filter(([k]) => k !== 'semanal' || (m.ai && m.ai.configured)).map(([k, t, d]) => '<label class="feat"><span class="grow"><b>' + esc(t) + '</b><small>' + esc(d) + '</small></span><span class="toggle"><input type="checkbox" data-feature="' + k + '"' + (f[k] ? ' checked' : '') + '><span aria-hidden="true"></span></span></label>').join('') + '</div></section>';
+      '<div class="feat-list">' + FEATURES.map(([k, t, d]) => '<label class="feat"><span class="grow"><b>' + esc(t) + '</b><small>' + esc(d) + '</small></span><span class="toggle"><input type="checkbox" data-feature="' + k + '"' + (f[k] ? ' checked' : '') + '><span aria-hidden="true"></span></span></label>').join('') + '</div></section>';
   }
 
   function planoPanel(m) {
@@ -748,7 +767,8 @@
     'Monta um orçamento para o próximo mês',
     'Tem algum gasto que eu deveria cortar?',
     'Como está minha fatura dos cartões este mês?',
-    'Posso comprar algo de R$ 3.000 em 10x?'
+    'Posso comprar algo de R$ 3.000 em 10x?',
+    'Me lembra de revisar as assinaturas no dia 1º'
   ];
 
   function screenIA(m) {
@@ -763,18 +783,25 @@
     }
     const msgs = (ai.messages || []).slice();
     if (S.aiPending) msgs.push({ role: 'user', content: S.aiPending });
-    const bubbles = msgs.map((x) => '<div class="bub ' + (x.role === 'user' ? 'me' : 'ai') + '">' + (x.role === 'user' ? '<p>' + esc(x.content).replace(/\n/g, '<br>') + '</p>' : md(x.content)) + '</div>').join('') +
+    const bubbles = msgs.map((x) => '<div class="bub ' + (x.role === 'user' ? 'me' : 'ai') + '">' + (x.role === 'user' ? '<p>' + esc(x.content).replace(/\n/g, '<br>') + '</p>' : md(x.content) + (x.acoes || []).map((a) => '<span class="acao">' + icon(a.tipo === 'criou' ? 'bell' : 'check', 13, 1.8) + (a.tipo === 'criou' ? 'Lembrete criado: ' : 'Lembrete apagado: ') + esc(a.texto) + (a.data ? ' · ' + esc(a.data.split('-').reverse().slice(0, 2).join('/')) : '') + '</span>').join('')) + '</div>').join('') +
       (S.aiBusy ? '<div class="bub ai typing" role="status"><span></span><span></span><span></span><em>Pensando nos seus números...</em></div>' : '');
     const empty = '<div class="chat-empty"><span class="chat-ic">' + icon('chat', 24, 1.6) + '</span>' + '<b>Pergunte qualquer coisa sobre o seu dinheiro</b><span>Eu vejo seus saldos, cartões, contas fixas e os lançamentos dos últimos meses.</span>' +
       '<div class="chips">' + AI_SUGESTOES.map((t) => '<button type="button" class="chip" data-act="ai-suggest" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>';
-    return '<section class="panel chat">' +
-      '<div class="chat-head"><span class="sub">Respostas da OpenAI com base nos seus dados. Confira antes de decidir algo grande.</span><span class="chat-tools">' +
-      (msgs.length ? '<button type="button" class="link" data-act="ai-clear">Nova conversa</button>' : '') +
+    const conversas = ai.conversas || [];
+    const lista = '<aside class="chat-list' + (S.aiList ? ' open' : '') + '" aria-label="Conversas">' +
+      '<button type="button" class="btn primary small" data-act="ai-clear">' + icon('plus', 14, 2) + 'Nova conversa</button>' +
+      (conversas.length ? '<div class="conv-items">' + conversas.map((c) => '<div class="conv' + (c.id === ai.atual ? ' on' : '') + '"><button type="button" class="conv-open" data-act="ai-open" data-v="' + esc(c.id) + '"' + (c.id === ai.atual ? ' aria-current="true"' : '') + '><b>' + esc(c.titulo) + '</b><small>' + esc(when(c.atualizada)) + ' · ' + Math.ceil(c.qtd / 2) + (Math.ceil(c.qtd / 2) === 1 ? ' pergunta' : ' perguntas') + '</small></button>' +
+        '<button type="button" class="icon-btn ghost conv-del" data-act="ai-delete" data-v="' + esc(c.id) + '" aria-label="Apagar a conversa ' + esc(c.titulo) + '">' + icon('trash', 14) + '</button></div>').join('') + '</div>'
+        : '<span class="sub" style="padding:8px 4px">Suas conversas aparecem aqui.</span>') + '</aside>';
+    const atual = conversas.find((c) => c.id === ai.atual);
+    return '<div class="chat-shell">' + lista + '<section class="panel chat">' +
+      '<div class="chat-head"><button type="button" class="btn small chat-list-btn" data-act="ai-list" aria-expanded="' + !!S.aiList + '">' + icon('list', 14) + 'Conversas' + (conversas.length ? ' (' + conversas.length + ')' : '') + '</button>' +
+      '<span class="chat-title"><b>' + esc(atual && !S.aiPending ? atual.titulo : (S.aiPending && !atual ? 'Nova conversa' : (atual ? atual.titulo : 'Nova conversa'))) + '</b><span class="sub">Respostas da OpenAI com base nos seus dados. Confira antes de decidir algo grande.</span></span><span class="chat-tools">' +
       '<button type="button" class="link" data-act="ai-edit" data-v="1">Chave e modelo</button></span></div>' +
       '<div class="chat-log" id="chat-log" aria-live="polite">' + (msgs.length ? bubbles : empty) + '</div>' +
       msg('ai') +
       '<form data-form="ai" class="chat-input"><textarea id="aiq" name="q" rows="1" placeholder="Pergunte sobre o seu dinheiro..." aria-label="Sua pergunta"' + (S.aiBusy ? ' disabled' : '') + '>' + esc(S.aiDraft || '') + '</textarea>' +
-      '<button class="btn primary" type="submit" aria-label="Enviar"' + (S.aiBusy ? ' disabled' : '') + '>' + icon('send', 16, 1.8) + '</button></form></section>';
+      '<button class="btn primary" type="submit" aria-label="Enviar"' + (S.aiBusy ? ' disabled' : '') + '>' + icon('send', 16, 1.8) + '</button></form></section></div>';
   }
 
   async function sendAi(text) {
@@ -783,7 +810,7 @@
     S.aiBusy = true; S.aiPending = text; S.aiDraft = ''; S.msg.ai = null;
     render();
     let res;
-    try { res = await api.aiSend(text); } catch (e) { res = { ok: false, message: 'Não consegui falar com o servidor. Tente de novo.' }; }
+    try { res = await api.aiSend({ text, conversa: S.m && S.m.ai ? S.m.ai.atual : null }); } catch (e) { res = { ok: false, message: 'Não consegui falar com o servidor. Tente de novo.' }; }
     S.aiBusy = false; S.aiPending = null;
     if (!res || !res.ok) { S.aiDraft = text; S.msg.ai = { ok: false, text: (res && res.message) || 'Não deu certo.' }; }
     await load();
@@ -874,6 +901,12 @@
         '<div class="field" id="wrap-desde"' + (g.billId ? '' : ' hidden') + '><label for="gd">Contar parcelas a partir de</label><input id="gd" name="desde" type="month" value="' + esc(g.desde || mesAtual) + '"><small>As parcelas desse mês em diante que aparecerem no extrato somam na meta.</small></div>' +
         '<div class="field" id="wrap-extra" style="grid-column:1/-1"' + (g.billId ? '' : ' hidden') + '><label for="gx">Dinheiro extra guardado em (opcional)</label><select id="gx" name="contaExtra"><option value="">Em nenhuma conta separada</option>' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaExtra ? ' selected' : '') + '>Somar o saldo da conta ' + esc(c.nome) + '</option>').join('') + '</select><small>Se você junta o que falta numa conta só para isso, o saldo dela soma na meta junto com as parcelas.</small></div>' +
         '<div class="actions" style="grid-column:1/-1">' + (d.id ? '<button type="button" class="btn danger" data-act="meta-remove" data-v="' + esc(g.id) + '">Apagar</button>' : '') + '<button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
+    } else if (d.type === 'lembrete') {
+      body = '<h2 class="h2" id="dlg-t">Novo lembrete</h2>' +
+        '<form data-form="lembrete" class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">' +
+        '<div class="field" style="grid-column:1/-1"><label for="lt">Lembrar de</label><input id="lt" name="texto" required maxlength="200" placeholder="Cancelar o Crunchyroll"></div>' +
+        '<div class="field"><label for="ld">Quando (opcional)</label><input id="ld" name="data" type="date"><small>Na data, ele aparece no sininho.</small></div>' +
+        '<div class="actions" style="grid-column:1/-1"><button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
     } else if (d.type === 'limites') {
       const cur = m.settings.limites || {};
       const gastos = {};
@@ -962,7 +995,7 @@
         if (a && a.tipo === 'conta') { S.screen = 'contas'; S.month = null; }
         else if (a && a.tipo === 'limite') { S.screen = 'lanc'; S.cat = a.cat; S.filtro = 'todos'; S.q = ''; S.month = null; }
         else if (a && a.tipo === 'resumo') { S.screen = 'visao'; S.month = a.mes; }
-        else if (a && a.tipo === 'semanal') { S.screen = 'ia'; }
+        else if (a && a.tipo === 'lembrete') { S.screen = 'visao'; S.month = null; }
         else if (a && a.tipo === 'alerta') { S.screen = 'lanc'; S.cat = null; S.filtro = 'todos'; S.q = a.titulo.replace(/^Cobrança repetida\? /, '').replace(/ (veio alto|ficou mais cara)$/, ''); S.month = null; }
         else if (a) { S.screen = 'lanc'; S.cat = null; S.filtro = 'todos'; S.q = a.titulo.replace(/, \d+ de \d+$/, ''); S.month = null; }
         window.scrollTo(0, 0); await load(); break;
@@ -999,6 +1032,8 @@
       case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; saveLanc(); try { history.replaceState(null, '', '#lanc'); } catch (err) { /* sem histórico */ } window.scrollTo(0, 0); render(); break;
       case 'cat-clear': S.cat = null; saveLanc(); render(); break;
       case 'dlg-meta': S.dialog = { type: 'meta', id: v || null }; S.msg.dlg = null; render(); break;
+      case 'dlg-lembrete': S.dialog = { type: 'lembrete' }; S.msg.dlg = null; render(); break;
+      case 'lembrete-done': el.disabled = true; await api.doneLembrete(v); toast('Lembrete concluído.'); await load(); break;
       case 'dlg-limites': S.dialog = { type: 'limites' }; S.msg.dlg = null; render(); break;
       case 'meta-remove': {
         const g = (S.m.settings.metas || []).find((x) => x.id === v);
@@ -1113,7 +1148,19 @@
       case 'logout': if (api.logout) api.logout(); break;
       case 'ai-suggest': sendAi(v); break;
       case 'ai-edit': S.editAi = v === '1'; S.msg.aikey = null; render(); break;
-      case 'ai-clear': await api.aiClear(); S.msg.ai = null; await load(); break;
+      case 'ai-clear': S.aiList = false; S.aiDraft = ''; await api.aiClear(); S.msg.ai = null; await load(); break;
+      case 'ai-list': S.aiList = !S.aiList; render(); break;
+      case 'ai-open': S.aiList = false; S.msg.ai = null; if (S.m.ai.atual !== v) { S.m.ai.atual = v; await api.aiOpen(v); await load(); } else render(); break;
+      case 'ai-delete': {
+        const c = (S.m.ai.conversas || []).find((x) => x.id === v);
+        S.dialog = { type: 'confirm', title: 'Apagar esta conversa?', text: '“' + (c ? c.titulo : '') + '” some para sempre.', yes: 'Apagar', run: () => api.aiDelete(v) };
+        render(); break;
+      }
+      case 'tema-toggle': {
+        const next = document.documentElement.classList.contains('dark') ? 'claro' : 'escuro';
+        try { localStorage.setItem('meucaixa-tema', next); } catch (err) { /* sem armazenamento */ }
+        S.tema = applyTheme(); render(); break;
+      }
       default: break;
     }
   });
@@ -1158,6 +1205,10 @@
     } else if (kind === 'meta') {
       const res = await api.saveMeta(data);
       if (res.ok) { S.dialog = null; toast('Meta salva.'); await load(); }
+      else { S.msg.dlg = { ok: false, text: res.message }; render(); }
+    } else if (kind === 'lembrete') {
+      const res = await api.saveLembrete(data);
+      if (res.ok) { S.dialog = null; toast('Lembrete salvo.'); await load(); }
       else { S.msg.dlg = { ok: false, text: res.message }; render(); }
     } else if (kind === 'limites') {
       const res = await api.saveLimites(data);

@@ -78,15 +78,19 @@ const actions = {
     m.sync.hasData = Object.keys(db.accounts || {}).length > 0;
     m.sync.autoStartAvailable = false;
     m.sync.web = true;
-    m.sync.weeklyDue = !!(m.features && m.features.semanal && db.secrets && db.secrets.openai && !db.settings.demo && (!db.weekly || new Date(db.weekly.at) < assistant.mondayStart(new Date())));
     m.sync.stale = configured && !db.settings.demo && m.sync.hasItems && (!db.lastSync || (Date.now() - new Date(db.lastSync)) > STALE_MS);
+    const migrou = Array.isArray(db.chat) && db.chat.length > 0;
+    const chats = assistant.migrateChats(db);
+    const atual = chats.find((c) => c.id === db.chatAtual) || null;
     m.ai = {
       configured: !!(db.secrets && db.secrets.openai),
       model: (db.settings.ai && db.settings.ai.model) || assistant.DEFAULT_MODEL,
-      messages: (db.chat || []).map((x) => ({ role: x.role, content: x.content, at: x.at }))
+      atual: atual ? atual.id : null,
+      conversas: chats.map((c) => ({ id: c.id, titulo: c.titulo, atualizada: c.atualizada, qtd: c.msgs.length })),
+      messages: atual ? atual.msgs.map((x) => ({ role: x.role, content: x.content, at: x.at, acoes: x.acoes || null })) : []
     };
     m.cats = Object.entries(CATS).filter(([k]) => k !== 'fatura').map(([k, v]) => ({ id: k, label: v.label }));
-    return { result: m };
+    return { result: m, changed: migrou };
   },
 
   'sync:now': async (db, arg, env) => {
@@ -174,16 +178,38 @@ const actions = {
     return { result: { ok: true }, changed: true };
   },
 
-  'ai:weekly': async (db, arg, env) => {
-    const f = Object.assign({}, require('./insights').FEATURE_DEFAULTS, db.settings.features || {});
-    const due = f.semanal && db.secrets && db.secrets.openai && !db.settings.demo && (!db.weekly || new Date(db.weekly.at) < assistant.mondayStart(new Date()));
-    if (!due) return { result: { ok: false, message: 'Ainda não é hora.' } };
-    const r = await assistant.weekly(db, env);
-    return { result: r, changed: r.ok };
+  'lembrete:save': async (db, x = {}) => {
+    const texto = String(x.texto || '').trim().slice(0, 200);
+    if (!texto) return { result: { ok: false, message: 'Escreva o lembrete.' } };
+    const data = /^\d{4}-\d{2}-\d{2}$/.test(x.data || '') ? x.data : '';
+    const list = db.lembretes || [];
+    if (x.id && list.some((l) => l.id === x.id)) db.lembretes = list.map((l) => (l.id === x.id ? Object.assign({}, l, { texto, data }) : l));
+    else db.lembretes = list.concat([{ id: 'l-' + Date.now().toString(36), texto, data, criado: new Date().toISOString(), origem: 'manual', feito: false }]);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'lembrete:done': async (db, id) => {
+    db.lembretes = (db.lembretes || []).filter((l) => l.id !== id);
+    return { result: { ok: true }, changed: true };
   },
 
   'ai:clear': async (db) => {
-    db.chat = [];
+    assistant.migrateChats(db);
+    db.chatAtual = null;
+    return { result: { ok: true }, changed: true };
+  },
+
+  'ai:open': async (db, id) => {
+    assistant.migrateChats(db);
+    if (!db.chats.some((c) => c.id === id)) return { result: { ok: false, message: 'Essa conversa não existe mais.' } };
+    db.chatAtual = id;
+    return { result: { ok: true }, changed: true };
+  },
+
+  'ai:delete': async (db, id) => {
+    assistant.migrateChats(db);
+    db.chats = db.chats.filter((c) => c.id !== id);
+    if (db.chatAtual === id) db.chatAtual = null;
     return { result: { ok: true }, changed: true };
   },
 
@@ -336,6 +362,8 @@ const actions = {
     const keep = ['items', 'accounts', 'transactions', 'billsByAccount', 'accountSync', 'manual', 'billMarks', 'catOverrides', 'catRules', 'lastSync', 'lastSyncError'];
     const secrets = db.secrets;
     const chat = db.chat;
+    const chats = db.chats;
+    const chatAtual = db.chatAtual;
     const ai = db.settings && db.settings.ai;
     const base = emptyDb();
     for (const k of Object.keys(db)) delete db[k];
@@ -346,6 +374,7 @@ const actions = {
     db.settings = Object.assign(base.settings, s, { demo: false });
     db.secrets = secrets || {};
     if (chat) db.chat = chat;
+    if (chats) { db.chats = chats; db.chatAtual = chatAtual; }
     if (ai) db.settings.ai = ai;
     // Sem as credenciais, a próxima sincronização refaz só a janela recente.
     return { result: { ok: true, transacoes: Object.keys(db.transactions || {}).length }, changed: true };

@@ -403,3 +403,37 @@ html.dark .good { color: #4ade80; }
 html.dark .tile { filter: saturate(0.9) brightness(0.92); }
 .cats.one { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .cats.one .line { flex-wrap: wrap; }
+
+/* Várias conversas */
+.chat-shell { display: flex; gap: 20px; align-items: stretch; min-width: 0; }
+.chat-shell > .panel.chat { flex: 1 1 auto; min-width: 0; }
+.chat-list { flex: 0 0 260px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); max-height: calc(100vh - 140px); }
+.chat-list > .btn { width: 100%; justify-content: center; }
+.conv-items { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; scrollbar-width: thin; }
+.conv { display: flex; align-items: center; border-radius: 12px; }
+.conv:hover { background: #f5f7fb; }
+.conv.on { background: var(--blue-soft); }
+.conv-open { flex: 1 1 auto; min-width: 0; border: 0; background: none; text-align: left; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.conv-open b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-open small { font-size: 12px; color: var(--muted); }
+.conv-del { width: 36px; height: 36px; opacity: 0; }
+.conv:hover .conv-del, .conv.on .conv-del, .conv-del:focus-visible { opacity: 1; }
+.chat-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.chat-title b { font: 600 16px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-list-btn { display: none; }
+html.dark .conv:hover { background: #1d2538; }
+@media (max-width: 760px) {
+  .chat-shell { flex-direction: column; gap: 12px; }
+  .chat-list { display: none; flex-basis: auto; max-height: 50vh; }
+  .chat-list.open { display: flex; }
+  .chat-list-btn { display: inline-flex; }
+  .conv-del { opacity: 1; }
+}
+
+.lem { gap: 12px; }
+.lem.due .m { color: #b45309; font-weight: 600; }
+html.dark .lem.due .m { color: #fbbf24; }
+.check-btn { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #cbd5e1; background: transparent; color: transparent; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.check-btn:hover, .check-btn:focus-visible { border-color: var(--green); color: var(--green); }
+html.dark .check-btn { border-color: #3a4560; }
+.bub .acao { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--blue-d); background: var(--blue-soft); border-radius: 999px; padding: 4px 10px; }
