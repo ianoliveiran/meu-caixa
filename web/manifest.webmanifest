@@ -1,6 +1,6 @@
 {
-  "name": "Meu Caixa",
-  "short_name": "Meu Caixa",
+  "name": "Meu Cofrin",
+  "short_name": "Meu Cofrin",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f5f9",

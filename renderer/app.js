@@ -105,7 +105,7 @@
       box = '<div class="sync-box idle"><span class="ic">' + icon('sync', 15, 1.8) + '</span><div><b>Ainda não sincronizou</b><span>Conecte seus bancos em Bancos e ajustes.</span></div></div>';
     }
     return '<nav class="side" aria-label="Menu">' +
-      '<div class="brand">' + window.ART.ill.logo + '<div><b>Meu Caixa</b><small>Finanças pessoais</small></div></div>' +
+      '<div class="brand">' + window.ART.ill.logo + '<div><b>Meu Cofrin</b><small>Finanças pessoais</small></div></div>' +
       '<div class="nav"><span class="nav-label">Menu</span>' + NAV.map(navBtn).join('') + '</div>' +
       '<div class="nav"><span class="nav-label">Ajustes</span>' + navBtn(['bancos', 'Bancos e ajustes', 'bank']) + '</div>' +
       '<div class="side-foot">' + box + '</div></nav>';
@@ -537,7 +537,7 @@
       '<div class="field"><label for="inv">Quanto quer investir por mês</label><input id="inv" name="investir" inputmode="decimal" value="' + moneyRaw(s.investir) + '" placeholder="0,00"><small>Sai do salário antes da sobra. Deixe 0 se não for investir agora.</small></div>' +
       '<div class="field"><label for="cpf">Seu CPF (opcional)</label><input id="cpf" name="cpf" inputmode="numeric" placeholder="' + (s.cpf ? esc(s.cpf) : 'só números') + '"><small>Ajuda a reconhecer Pix entre contas suas. Fica só neste PC.</small></div>' +
       (m.sync.web ? '' : '<div class="field"><label for="hrs">Sincronizar a cada</label><select id="hrs" name="syncHours">' + [1, 2, 3, 6, 12].map((h) => '<option value="' + h + '"' + (h === s.syncHours ? ' selected' : '') + '>' + h + (h === 1 ? ' hora' : ' horas') + '</option>').join('') + '</select></div>' +
-      '<div class="field"><label>Ao ligar o computador</label><label class="switch"><input type="checkbox" name="autoStart"' + (s.autoStart ? ' checked' : '') + (m.sync.autoStartAvailable ? '' : ' disabled') + '> Abrir o Meu Caixa junto com o Windows</label></div>'
+      '<div class="field"><label>Ao ligar o computador</label><label class="switch"><input type="checkbox" name="autoStart"' + (s.autoStart ? ' checked' : '') + (m.sync.autoStartAvailable ? '' : ' disabled') + '> Abrir o Meu Cofrin junto com o Windows</label></div>'
         + '') +
       '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar</button></div></form>' + msg('settings') + '</section>' +
 
@@ -553,7 +553,7 @@
 
   // ---------- Boas-vindas ----------
   function screenWelcome() {
-    return '<div class="welcome"><section class="panel"><div class="head"><div><h1>Seu dinheiro, atualizado sozinho</h1><span class="sub" style="font-size:15px;max-width:60ch">O Meu Caixa busca suas compras, faturas e saldos pelo Open Finance, sem você digitar nada. ' + (S.m && S.m.sync && S.m.sync.web ? 'Tudo fica na sua conta, protegido por login.' : 'Tudo fica guardado só neste computador.') + '</span></div>' + ill.wallet + '</div>' +
+    return '<div class="welcome"><section class="panel"><div class="head"><div><h1>Seu dinheiro, atualizado sozinho</h1><span class="sub" style="font-size:15px;max-width:60ch">O Meu Cofrin busca suas compras, faturas e saldos pelo Open Finance, sem você digitar nada. ' + (S.m && S.m.sync && S.m.sync.web ? 'Tudo fica na sua conta, protegido por login.' : 'Tudo fica guardado só neste computador.') + '</span></div>' + ill.wallet + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:12px"><button type="button" class="btn primary" data-act="nav" data-v="bancos">Conectar meus bancos</button><button type="button" class="btn" data-act="demo-start">Ver com dados de exemplo</button></div></section></div>';
   }
 

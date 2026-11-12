@@ -119,7 +119,7 @@
     history.replaceState(null, '', location.pathname);
     const err = h.get('error_description') || q.get('error_description') || h.get('error') || q.get('error');
     if (err) {
-      showLogin(/database error|saving new user|fechado/i.test(err) ? 'Essa conta do Google não tem acesso a este Meu Caixa.' : 'Não consegui entrar com o Google: ' + err.replace(/\+/g, ' '));
+      showLogin(/database error|saving new user|fechado/i.test(err) ? 'Essa conta do Google não tem acesso a este Meu Cofrin.' : 'Não consegui entrar com o Google: ' + err.replace(/\+/g, ' '));
       return true;
     }
     const data = { access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_in: Number(h.get('expires_in')) || 3600 };
@@ -134,7 +134,7 @@
 
   function showLogin(msg, isError) {
     root.innerHTML = '<div class="login"><section class="panel">' +
-      '<div class="brandline">' + logo + '<div><h1>Meu Caixa</h1><span class="sub">Entre para ver suas finanças</span></div></div>' +
+      '<div class="brandline">' + logo + '<div><h1>Meu Cofrin</h1><span class="sub">Entre para ver suas finanças</span></div></div>' +
       '<button type="button" class="btn primary google" id="google">' + gIcon + 'Entrar com Google</button>' +
       (msg ? '<div class="msg ' + (isError === false ? 'ok' : 'err') + '" role="status">' + esc(msg) + '</div>' : '') +
       '<details class="senha"' + (/senha|E-mail|caracteres|criar a conta/.test(msg || '') ? ' open' : '') + '><summary>Entrar com e-mail e senha</summary>' +
@@ -156,7 +156,7 @@
         if (!r.ok) {
           const m = String((r.data && (r.data.msg || r.data.message || r.data.error_description)) || '');
           if (/already registered|already exists/i.test(m)) return showLogin('Esse e-mail já tem senha. Use Entrar.');
-          if (/database error|saving new user|fechado/i.test(m) || r.status === 500) return showLogin('Esse e-mail não tem acesso a este Meu Caixa.');
+          if (/database error|saving new user|fechado/i.test(m) || r.status === 500) return showLogin('Esse e-mail não tem acesso a este Meu Cofrin.');
           return showLogin(m || 'Não consegui criar a conta.');
         }
       }
