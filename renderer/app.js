@@ -416,7 +416,7 @@
       metas.map((g) => '<div class="meta">' +
         '<div class="line"><span class="t">' + icon('target', 16, 1.8) + esc(g.nome) + '</span>' + (web ? '<button type="button" class="icon-btn ghost" data-act="dlg-meta" data-v="' + esc(g.id) + '" aria-label="Editar a meta ' + esc(g.nome) + '">' + icon('pencil', 15) + '</button>' : '') + '</div>' +
         '<div class="line"><b class="big-s">' + brl(g.atual) + '</b><span class="sub">de ' + brl(g.valor) + (g.conta ? ' · guardado no ' + esc(g.conta) : '') + '</span></div>' +
-        (g.bill ? '<span class="sub">' + (g.guardado ? brl(g.guardado) + ' pagos antes + ' : '') + g.bill.qtd + (g.bill.qtd === 1 ? ' parcela' : ' parcelas') + ' de ' + esc(g.bill.nome) + ' (' + brl(g.bill.pagos) + ')</span>' : '') +
+        (g.bill ? '<span class="sub">' + (g.guardado ? brl(g.guardado) + ' pagos antes + ' : '') + g.bill.qtd + (g.bill.qtd === 1 ? ' parcela' : ' parcelas') + ' de ' + esc(g.bill.nome) + ' (' + brl(g.bill.pagos) + ')' + (g.bill.contaExtra ? ' + ' + brl(g.bill.saldoExtra) + ' guardados no ' + esc(g.bill.contaExtra) : '') + '</span>' : '') +
         '<div class="track" role="img" aria-label="' + Math.round(g.pct) + '% da meta" style="height:10px"><div style="height:10px;width:' + g.pct + '%;background:var(--green)"></div></div>' +
         '<span class="sub">' + (g.falta <= 0 ? '<span class="good">' + icon('check', 13, 2) + 'Meta alcançada!</span>'
           : (g.porMes !== null ? (g.bill ? 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ' (' + brl(g.porMes) + ' por mês).' : 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ': guarde <b>' + brl(g.porMes) + '</b> por mês.') : 'Faltam ' + brl(g.falta) + '.') +
@@ -872,6 +872,7 @@
           '</select><small id="gc-help">' + metaFonteHelp(fonteAtual) + '</small></div>' +
         '<div class="field" id="wrap-guardado"' + (g.contaId ? ' hidden' : '') + '><label for="gg" id="gg-label">' + (g.billId ? 'Quanto já tinha pago antes' : 'Quanto já tem guardado') + '</label><input id="gg" name="guardado" inputmode="decimal" value="' + (g.guardado ? moneyRaw(g.guardado) : '') + '" placeholder="0,00"></div>' +
         '<div class="field" id="wrap-desde"' + (g.billId ? '' : ' hidden') + '><label for="gd">Contar parcelas a partir de</label><input id="gd" name="desde" type="month" value="' + esc(g.desde || mesAtual) + '"><small>As parcelas desse mês em diante que aparecerem no extrato somam na meta.</small></div>' +
+        '<div class="field" id="wrap-extra" style="grid-column:1/-1"' + (g.billId ? '' : ' hidden') + '><label for="gx">Dinheiro extra guardado em (opcional)</label><select id="gx" name="contaExtra"><option value="">Em nenhuma conta separada</option>' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaExtra ? ' selected' : '') + '>Somar o saldo da conta ' + esc(c.nome) + '</option>').join('') + '</select><small>Se você junta o que falta numa conta só para isso, o saldo dela soma na meta junto com as parcelas.</small></div>' +
         '<div class="actions" style="grid-column:1/-1">' + (d.id ? '<button type="button" class="btn danger" data-act="meta-remove" data-v="' + esc(g.id) + '">Apagar</button>' : '') + '<button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
     } else if (d.type === 'limites') {
       const cur = m.settings.limites || {};
@@ -1226,6 +1227,7 @@
       const isBill = v.startsWith('bill:');
       const w = document.getElementById('wrap-guardado'); if (w) w.hidden = !!v && !isBill;
       const wd = document.getElementById('wrap-desde'); if (wd) wd.hidden = !isBill;
+      const wx = document.getElementById('wrap-extra'); if (wx) wx.hidden = !isBill;
       const l = document.getElementById('gg-label'); if (l) l.textContent = isBill ? 'Quanto já tinha pago antes' : 'Quanto já tem guardado';
       const hp = document.getElementById('gc-help'); if (hp) hp.textContent = metaFonteHelp(v);
       return;

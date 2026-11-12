@@ -147,7 +147,8 @@ const actions = {
     const desde = billId && /^\d{4}-\d{2}$/.test(g.desde || '') ? g.desde : '';
     const list = db.settings.metas || [];
     const id = g.id && list.some((x) => x.id === g.id) ? g.id : 'meta-' + Date.now().toString(36);
-    const item = { id, nome, valor, prazo, contaId, billId, desde, guardado };
+    const contaExtra = billId ? String(g.contaExtra || '') : '';
+    const item = { id, nome, valor, prazo, contaId, billId, desde, guardado, contaExtra };
     db.settings.metas = list.some((x) => x.id === id) ? list.map((x) => (x.id === id ? item : x)) : list.concat([item]);
     return { result: { ok: true }, changed: true };
   },

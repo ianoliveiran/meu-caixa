@@ -88,7 +88,10 @@ function buildInsights(h) {
         }
         pagos = { soma: round2(soma), qtd };
       }
-      const atual = acc ? round2(Number(acc.balance) || 0) : round2((Number(g.guardado) || 0) + (pagos ? pagos.soma : 0));
+      // Com despesa fixa, dá para somar também o saldo de uma conta onde fica o dinheiro extra.
+      const extraAcc = bill && g.contaExtra ? h.bankAccounts.find((a) => a.id === g.contaExtra) : null;
+      const extraSaldo = extraAcc ? round2(Number(extraAcc.balance) || 0) : 0;
+      const atual = acc ? round2(Number(acc.balance) || 0) : round2((Number(g.guardado) || 0) + (pagos ? pagos.soma : 0) + extraSaldo);
       const valor = Number(g.valor) || 0;
       const falta = round2(Math.max(0, valor - atual));
       let meses = null;
@@ -111,7 +114,7 @@ function buildInsights(h) {
         prazo: g.prazo || '', prazoLabel, meses, porMes, ritmo: bill ? null : ritmo, chegaEm,
         noRitmo: porMes !== null && passo !== null && passo !== undefined ? passo >= porMes - 0.01 : null,
         conta: acc ? h.bankNameOf(acc) : null, contaId: g.contaId || '', guardado: Number(g.guardado) || 0,
-        bill: bill ? { nome: bill.nome, parcela, pagos: pagos.soma, qtd: pagos.qtd, extra: porMes !== null ? round2(Math.max(0, porMes - parcela)) : null } : null
+        bill: bill ? { nome: bill.nome, parcela, pagos: pagos.soma, qtd: pagos.qtd, extra: porMes !== null ? round2(Math.max(0, porMes - parcela)) : null, contaExtra: extraAcc ? h.bankNameOf(extraAcc) : null, contaExtraId: g.contaExtra || '', saldoExtra: extraSaldo } : null
       };
     });
   }
