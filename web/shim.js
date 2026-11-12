@@ -119,6 +119,7 @@
     aiSend: call('ai:send'),
     aiKey: call('ai:key'),
     aiClear: call('ai:clear'),
+    notifSeen: call('notif:seen'),
     openExternal: async (url) => { if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener'); return { ok: true }; },
     onChange: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((x) => x !== fn); }; },
     email: () => (session && session.email) || '',

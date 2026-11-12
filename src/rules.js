@@ -523,7 +523,32 @@ function buildModel(db, opts) {
   });
   const compras = all.filter((t) => t.kind === 'expense' || t.kind === 'pix_credit').slice(0, 6).map(label);
   const lancamentos = monthTx.map(label);
-  const novas = all.filter((t) => t.createdAt && (now - t.createdAt) < 86400000 && (now - t.date) < 3 * 86400000 && spendKinds.has(t.kind)).length;
+  // ----- Notificações -----
+  // Lançamentos que chegaram nos últimos 7 dias e contas que vencem em até 3 dias.
+  // "Novo" é o que chegou depois da última vez que o sininho foi aberto.
+  const seenAt = Number((db.settings || {}).notifSeen) || (now - 86400000);
+  const DAY = 86400000;
+  const avisos = [];
+  const avisoKinds = new Set(['expense', 'pix_credit', 'fee', 'income', 'refund']);
+  for (const t of all) {
+    if (!t.createdAt || (now - t.createdAt) > 7 * DAY || (now - t.date) > 10 * DAY || !avisoKinds.has(t.kind)) continue;
+    const v = label(t);
+    avisos.push({ id: 'tx:' + t.id, tipo: 'tx', titulo: v.nome, texto: v.conta + ' · ' + v.data, valor: v.valor, cat: v.cat, marca: v.marca, termo: v.termo, quando: +t.createdAt, novo: +t.createdAt > seenAt });
+  }
+  if (mk === monthKey(now)) {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    for (const b of bills) {
+      if (b.paid || b.semanal || b.semData || !b.dia || b.noCartao) continue;
+      const due = new Date(now.getFullYear(), now.getMonth(), b.dia);
+      const dias = Math.round((due - today) / DAY);
+      if (dias < -5 || dias > 3) continue;
+      const desde = +new Date(due - 3 * DAY);
+      avisos.push({ id: 'bill:' + b.id + ':' + mk, tipo: 'conta', titulo: b.nome, texto: dias < 0 ? 'Venceu há ' + (-dias) + (dias === -1 ? ' dia' : ' dias') + ' e ainda não apareceu paga' : dias === 0 ? 'Vence hoje' : dias === 1 ? 'Vence amanhã' : 'Vence em ' + dias + ' dias', valor: -b.valor, cat: b.icon || b.cat, marca: b.marca, quando: Math.min(+now, desde), atrasada: dias < 0, novo: desde > seenAt });
+    }
+  }
+  avisos.sort((a, b) => (b.novo - a.novo) || (b.tipo === 'conta') - (a.tipo === 'conta') || b.quando - a.quando);
+  avisos.splice(30);
+  const novas = avisos.filter((x) => x.novo).length;
 
   const bancos = Object.values(items).map((it) => {
     const accs = accounts.filter((a) => a.itemId === it.id);
@@ -573,7 +598,7 @@ function buildModel(db, opts) {
       meses: guardadoMes > 0 && meta > reserveBalance ? Math.ceil((meta - reserveBalance) / guardadoMes) : null
     },
     categorias, totalGasto, pixCredito,
-    compras, lancamentos, novas,
+    compras, lancamentos, novas, avisos,
     bancos,
     manual: (db.manual || []).filter((x) => x.tipo !== 'credito').map((x) => Object.assign({}, x)),
     manualCredits: (db.manual || []).filter((x) => x.tipo === 'credito').map((x) => {

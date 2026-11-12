@@ -112,6 +112,20 @@
       '<div class="side-foot">' + box + '</div></nav>';
   }
 
+  function notifPanel(m) {
+    const list = S.notif.list || [];
+    const item = (a) => '<button type="button" class="notif-item' + (a.novo ? ' novo' : '') + '" data-act="notif-open" data-v="' + esc(a.id) + '">' +
+      (a.tipo === 'conta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? '#fff1f2' : '#fef3c7') + ';color:' + (a.atrasada ? '#be123c' : '#b45309') + '">' + icon(a.atrasada ? 'alert' : 'calendar', 15, 1.8) + '</span>' : mark(a.marca, a.cat, true)) +
+      '<span class="grow"><b>' + esc(a.titulo) + '</b><small>' + esc(a.texto) + (a.tipo === 'tx' ? ' · chegou ' + esc(when(new Date(a.quando).toISOString())) : '') + '</small></span>' +
+      '<span class="val' + (a.valor > 0 ? ' pos' : '') + '">' + signedBrl(a.valor) + '</span></button>';
+    const novos = list.filter((a) => a.novo);
+    const vistos = list.filter((a) => !a.novo);
+    return '<div class="menu notif" role="dialog" aria-label="Notificações"><div class="notif-head"><b>Notificações</b>' + (novos.length ? '<span class="pill">' + novos.length + (novos.length === 1 ? ' nova' : ' novas') + '</span>' : '') + '</div>' +
+      (list.length ? '<div class="notif-list">' + (novos.length ? novos.map(item).join('') : '') + (vistos.length ? '<span class="notif-sep">Vistas</span>' + vistos.map(item).join('') : '') + '</div>'
+        : '<div class="empty-state" style="padding:20px 12px">Nada novo. Lançamentos dos últimos 7 dias e contas perto de vencer aparecem aqui.</div>') +
+      '<button type="button" class="notif-foot" data-act="notif-all">Ver todos os lançamentos</button></div>';
+  }
+
   function topBar(m) {
     const titles = { visao: null, lanc: 'Lançamentos', cartoes: 'Cartões', contas: 'Contas a pagar', fixas: 'Despesas fixas', bancos: 'Bancos e ajustes', ia: 'Conversar' };
     const t = titles[S.screen];
@@ -127,7 +141,7 @@
       (m.sync.demo ? '<span class="pill amber">Dados de exemplo</span>' : '') +
       '</div><div class="right">' +
       '<button type="button" class="icon-btn out" data-act="hide" aria-pressed="' + S.hide + '" aria-label="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '" title="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '">' + icon(S.hide ? 'eyeoff' : 'eye') + '</button>' +
-      '<button type="button" class="icon-btn out" data-act="nav" data-v="lanc" aria-label="' + m.novas + ' lançamentos novos nas últimas 24 horas">' + icon('bell') + (m.novas ? '<span class="badge">' + m.novas + '</span>' : '') + '</button>' +
+      '<div class="dropdown"><button type="button" class="icon-btn out" data-act="notif" aria-expanded="' + !!S.notif + '" aria-label="Notificações' + (m.novas ? ', ' + m.novas + (m.novas === 1 ? ' nova' : ' novas') : '') + '">' + icon('bell') + (m.novas ? '<span class="badge">' + m.novas + '</span>' : '') + '</button>' + (S.notif ? notifPanel(m) : '') + '</div>' +
       '<button type="button" class="icon-btn out" data-act="sync" aria-label="Sincronizar agora"' + (S.syncing || m.sync.demo ? ' disabled' : '') + '>' + icon('sync', 18, 1.6).replace('<svg', S.syncing ? '<svg class="spin"' : '<svg') + '</button>' +
       '<div class="dropdown"><button type="button" class="btn primary" data-act="menu" aria-expanded="' + S.menu + '">' + icon('plus', 14, 2) + 'Adicionar' + icon('down', 14, 2) + '</button>' +
       (S.menu ? '<div class="menu"><button type="button" data-act="dlg-bill">' + tile('contas', true) + 'Despesa fixa (apartamento, luz...)</button><button type="button" data-act="dlg-bill" data-freq="unica">' + tile('calendar', true) + 'Conta a pagar (uma vez só)</button></div>' : '') +
@@ -745,14 +759,30 @@
 
   root.addEventListener('click', async (e) => {
     const el = e.target.closest('[data-act]');
-    if (!el) { if (S.menu) { S.menu = false; render(); } return; }
+    if (!el) { if ((S.menu || S.notif) && !e.target.closest('.menu')) { S.menu = false; S.notif = null; render(); } return; }
     const act = el.dataset.act;
     const v = el.dataset.v;
     if (act !== 'menu' && S.menu) S.menu = false;
+    if (S.notif && !['notif', 'notif-open', 'notif-all', 'hide'].includes(act)) S.notif = null;
     switch (act) {
       case 'nav': S.screen = v; S.day = null; S.msg = {}; if (v === 'lanc') S.cat = null; window.scrollTo(0, 0); render(); break;
       case 'month': S.month = v || null; S.day = null; await load(); break;
-      case 'menu': S.menu = !S.menu; render(); break;
+      case 'menu': S.menu = !S.menu; S.notif = null; render(); break;
+      case 'notif':
+        if (S.notif) { S.notif = null; render(); break; }
+        S.menu = false;
+        S.notif = { list: (S.m.avisos || []).slice() };
+        render();
+        if (S.m.novas && api.notifSeen) { api.notifSeen().then(() => load()).catch(() => {}); }
+        break;
+      case 'notif-all': S.notif = null; S.screen = 'lanc'; S.cat = null; S.q = ''; S.filtro = 'todos'; S.month = null; window.scrollTo(0, 0); await load(); break;
+      case 'notif-open': {
+        const a = ((S.notif && S.notif.list) || []).find((x) => x.id === v);
+        S.notif = null;
+        if (a && a.tipo === 'conta') { S.screen = 'contas'; S.month = null; }
+        else if (a) { S.screen = 'lanc'; S.cat = null; S.filtro = 'todos'; S.q = a.titulo.replace(/, \d+ de \d+$/, ''); S.month = null; }
+        window.scrollTo(0, 0); await load(); break;
+      }
       case 'hide':
         S.hide = !S.hide;
         try { localStorage.setItem('meucaixa-ocultar', S.hide ? '1' : '0'); } catch (err) { /* sem armazenamento */ }
@@ -977,7 +1007,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.target && e.target.id === 'aiq' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendAi(e.target.value); return; }
-    if (e.key === 'Escape' && (S.dialog || S.menu)) { S.dialog = null; S.menu = false; render(); }
+    if (e.key === 'Escape' && (S.dialog || S.menu || S.notif)) { S.dialog = null; S.menu = false; S.notif = null; render(); }
   });
 
   api.onChange(async (data) => {

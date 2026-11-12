@@ -124,6 +124,11 @@ const actions = {
     return { result: res, changed: !!res.ok };
   },
 
+  'notif:seen': async (db) => {
+    db.settings.notifSeen = Date.now();
+    return { result: { ok: true }, changed: true };
+  },
+
   'ai:clear': async (db) => {
     db.chat = [];
     return { result: { ok: true }, changed: true };

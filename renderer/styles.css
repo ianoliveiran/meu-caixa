@@ -299,3 +299,25 @@ tr.grp td > .desc + b, tr.grp td b { float: right; }
 tr.grp .desc { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
 td.fix-cell { width: 44px; padding-left: 4px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Notificações */
+.menu.notif { width: min(380px, calc(100vw - 24px)); padding: 0; gap: 0; overflow: hidden; }
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 10px; }
+.notif-head b { font: 600 16px var(--display); }
+.notif-list { max-height: min(60vh, 440px); overflow-y: auto; display: flex; flex-direction: column; padding: 0 6px 6px; scrollbar-width: thin; }
+.menu.notif .notif-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; width: 100%; text-align: left; position: relative; }
+.menu.notif .notif-item.novo { background: var(--blue-soft); }
+.menu.notif .notif-item.novo::before { content: ""; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--blue); }
+.menu.notif .notif-item:hover { background: #f1f5f9; }
+.notif-item .grow { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif-item .grow b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-item .grow small { font-size: 12px; color: var(--muted); }
+.notif-item .val { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.notif-item .val.pos { color: var(--green-d); }
+.notif-sep { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); padding: 12px 10px 4px; }
+.menu.notif .notif-foot { border-top: 1px solid var(--line); border-radius: 0; justify-content: center; color: var(--blue-d); font-weight: 600; min-height: 48px; }
+@media (max-width: 760px) {
+  .top-bar .right .dropdown:has(.notif) { position: static; }
+  .top-bar { position: relative; }
+  .menu.notif { left: 8px; right: 8px; width: auto; }
+}
