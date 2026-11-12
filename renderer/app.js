@@ -563,7 +563,9 @@
     return demoBanner +
       '<section class="panel"><div class="head"><div><h2 class="h2">Bancos conectados</h2><span class="sub">' + (m.sync.web ? 'Sincroniza quando você abre o app, no máximo a cada 6 h.' : 'Sincroniza ao abrir o app e a cada ' + s.syncHours + ' h.') + ' A Pluggy atualiza os bancos uma vez por dia.</span></div>' +
       (configured ? '<button type="button" class="btn small" data-act="sync"' + (S.syncing ? ' disabled' : '') + '>' + icon('sync', 16) + (S.syncing ? 'Sincronizando' : 'Sincronizar agora') + '</button>' : '') + '</div>' +
-      bancos + pendingList + msg('sync') + '</section>' +
+      bancos + pendingList + msg('sync') +
+      (m.sync.web && configured && !m.sync.demo && api.refreshBanks ? '<div class="refresh-row"><div><b>Pedir dados novos aos bancos</b><span class="sub">O app pede sozinho a cada 3 horas quando você abre, para não gastar o limite mensal do Open Finance.' + (m.sync.refreshAt ? ' Último pedido: ' + esc(when(new Date(m.sync.refreshAt).toISOString())) + '.' : '') + '</span></div>' +
+        '<button type="button" class="btn small" data-act="refresh-banks">' + icon('sync', 14) + 'Pedir agora</button></div>' + msg('refresh') : '') + '</section>' +
 
       (m.sync.demo ? '' :
         '<section class="panel"><h2 class="h2">1. Conectar a Pluggy</h2>' +
@@ -815,6 +817,13 @@
         toast(S.hide ? 'Valores escondidos.' : 'Valores à mostra.');
         render();
         break;
+      case 'refresh-banks': {
+        el.disabled = true;
+        const r = await api.refreshBanks();
+        S.msg.refresh = r && r.ok ? { ok: true, text: 'Pedido feito para ' + r.pedidos + (r.pedidos === 1 ? ' banco' : ' bancos') + '. Os dados novos chegam em alguns minutos e o app busca sozinho.' } : { ok: false, text: (r && r.message) || 'Não deu certo.' };
+        await load();
+        break;
+      }
       case 'sync': {
         S.msg.sync = null;
         const res = await api.syncNow();

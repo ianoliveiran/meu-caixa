@@ -66,6 +66,20 @@ class PluggyClient {
     return res.json();
   }
 
+  // Pede para a Pluggy buscar dados novos no banco. A atualização roda por trás e leva alguns minutos.
+  async updateItem(itemId) {
+    const key = await this.auth();
+    const res = await this.fetch(BASE + '/items/' + encodeURIComponent(itemId), {
+      method: 'PATCH',
+      headers: { 'X-API-KEY': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: '{}'
+    });
+    let body = {};
+    try { body = await res.json(); } catch (e) { /* sem corpo */ }
+    if (!res.ok) throw new PluggyError((body && (body.message || body.codeDescription)) || ('erro ' + res.status), res.status);
+    return body;
+  }
+
   fetchItem(itemId) {
     return this.get('items/' + encodeURIComponent(itemId));
   }

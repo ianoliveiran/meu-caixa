@@ -58,6 +58,19 @@
   const call = (action) => (arg) => rpc(action, arg);
   const notify = (d) => listeners.forEach((fn) => { try { fn(d); } catch (e) { /* ignora */ } });
 
+  let refreshTried = false;
+  // Pede aos bancos dados novos e busca o resultado depois de alguns minutos.
+  async function requestRefresh(manual) {
+    let r;
+    try { r = await rpc('items:refresh', { manual }); } catch (e) { return { ok: false }; }
+    if (r && r.ok) {
+      setTimeout(backgroundSync, 90 * 1000);
+      setTimeout(backgroundSync, 5 * 60 * 1000);
+    }
+    if (!syncing) backgroundSync();
+    return r;
+  }
+
   async function backgroundSync() {
     syncing = true;
     notify({ syncing: true });
@@ -94,7 +107,8 @@
       }
       if (m && m.sync) {
         m.sync.syncing = syncing;
-        if (m.sync.stale && !staleTried && !syncing) { staleTried = true; setTimeout(backgroundSync, 50); }
+        if (m.sync.refreshDue && !refreshTried) { refreshTried = true; setTimeout(() => requestRefresh(false), 50); }
+        else if (m.sync.stale && !staleTried && !syncing) { staleTried = true; setTimeout(backgroundSync, 50); }
       }
       return m;
     },
@@ -120,6 +134,7 @@
     aiKey: call('ai:key'),
     aiClear: call('ai:clear'),
     notifSeen: call('notif:seen'),
+    refreshBanks: () => requestRefresh(true),
     openExternal: async (url) => { if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener'); return { ok: true }; },
     onChange: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((x) => x !== fn); }; },
     email: () => (session && session.email) || '',
