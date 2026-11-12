@@ -31,3 +31,9 @@ body { padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) en
   .row > .panel, .row > div { flex-basis: 100% !important; }
   .dropdown .btn.primary { padding: 0 12px; }
 }
+
+.login .google { width: 100%; gap: 10px; }
+.login details.senha { border-top: 1px solid var(--line, #e5e7eb); padding-top: 14px; }
+.login details.senha summary { cursor: pointer; color: var(--muted); font-size: 14px; list-style: none; text-align: center; }
+.login details.senha summary::-webkit-details-marker { display: none; }
+.login details.senha[open] summary { margin-bottom: 14px; }

@@ -553,7 +553,7 @@
 
   // ---------- Boas-vindas ----------
   function screenWelcome() {
-    return '<div class="welcome"><section class="panel"><div class="head"><div><h1>Seu dinheiro, atualizado sozinho</h1><span class="sub" style="font-size:15px;max-width:60ch">O Meu Caixa busca suas compras, faturas e saldos pelo Open Finance, sem você digitar nada. Tudo fica guardado só neste computador.</span></div>' + ill.wallet + '</div>' +
+    return '<div class="welcome"><section class="panel"><div class="head"><div><h1>Seu dinheiro, atualizado sozinho</h1><span class="sub" style="font-size:15px;max-width:60ch">O Meu Caixa busca suas compras, faturas e saldos pelo Open Finance, sem você digitar nada. ' + (S.m && S.m.sync && S.m.sync.web ? 'Tudo fica na sua conta, protegido por login.' : 'Tudo fica guardado só neste computador.') + '</span></div>' + ill.wallet + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:12px"><button type="button" class="btn primary" data-act="nav" data-v="bancos">Conectar meus bancos</button><button type="button" class="btn" data-act="demo-start">Ver com dados de exemplo</button></div></section></div>';
   }
 
