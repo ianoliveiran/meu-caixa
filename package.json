@@ -8,7 +8,8 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/rules.test.js",
-    "pack:win": "electron-packager . \"Meu Caixa\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=^/dist --ignore=^/test --ignore=^/tools --ignore=^/README.md --app-copyright=\"Uso pessoal\""
+    "pack:win": "electron-packager . \"Meu Caixa\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=^/dist --ignore=^/test --ignore=^/tools --ignore=^/README.md --ignore=^/web --ignore=^/api --ignore=^/vercel.json --app-copyright=\"Uso pessoal\"",
+    "build:web": "node web/build.js"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

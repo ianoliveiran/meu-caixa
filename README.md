@@ -47,6 +47,18 @@ Guia oficial: [github.com/pluggyai/meu-pluggy](https://github.com/pluggyai/meu-p
 
 `%APPDATA%\Meu Caixa\meu-caixa.json`, com uma cópia de segurança por dia na pasta `backups` ao lado (guarda as últimas 14).
 
+## Versão web (celular e qualquer computador)
+
+O mesmo painel também roda como site, com login, usando Vercel e Supabase:
+
+- `api/rpc.js` é a única rota do servidor. Ela confere o login no Supabase, carrega os dados do dono e roda a mesma lógica do app de Windows (`src/actions.js`).
+- Os dados ficam numa linha por usuário em `app_state`, protegida por RLS (cada um só lê e grava a própria).
+- O Client Secret da Pluggy é guardado criptografado (AES-256-GCM) com a chave `SECRET_KEY`, que só existe na Vercel.
+- O cadastro é fechado: só e-mails da tabela `private.allowed_emails` conseguem criar senha.
+- Não há agendamento: o site atualiza os bancos quando você abre e a última atualização tem mais de 6 horas.
+
+Variáveis na Vercel: `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SECRET_KEY` (32 bytes aleatórios em base64, por exemplo `openssl rand -base64 32`).
+
 ## Para quem quer mexer no código
 
 Precisa de [Node.js](https://nodejs.org) 20 ou mais novo.

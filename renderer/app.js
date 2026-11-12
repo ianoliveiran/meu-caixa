@@ -511,17 +511,17 @@
       '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar e testar</button></div></form>';
 
     return demoBanner +
-      '<section class="panel"><div class="head"><div><h2 class="h2">Bancos conectados</h2><span class="sub">Sincroniza ao abrir o app e a cada ' + s.syncHours + ' h. A Pluggy atualiza os bancos uma vez por dia.</span></div>' +
+      '<section class="panel"><div class="head"><div><h2 class="h2">Bancos conectados</h2><span class="sub">' + (m.sync.web ? 'Sincroniza quando você abre o app, no máximo a cada 6 h.' : 'Sincroniza ao abrir o app e a cada ' + s.syncHours + ' h.') + ' A Pluggy atualiza os bancos uma vez por dia.</span></div>' +
       (configured ? '<button type="button" class="btn small" data-act="sync"' + (S.syncing ? ' disabled' : '') + '>' + icon('sync', 16) + (S.syncing ? 'Sincronizando' : 'Sincronizar agora') + '</button>' : '') + '</div>' +
       bancos + pendingList + msg('sync') + '</section>' +
 
       (m.sync.demo ? '' :
         '<section class="panel"><h2 class="h2">1. Conectar a Pluggy</h2>' +
         (configured && !S.editSecrets
-          ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px"><span class="good">' + icon('check', 14, 2) + 'Credenciais salvas e criptografadas neste PC</span><button type="button" class="link" data-act="edit-secrets">Trocar credenciais</button></div>'
+          ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px"><span class="good">' + icon('check', 14, 2) + (m.sync.web ? 'Credenciais salvas e criptografadas no servidor' : 'Credenciais salvas e criptografadas neste PC') + '</span><button type="button" class="link" data-act="edit-secrets">Trocar credenciais</button></div>'
           : '<ol class="steps"><li>Crie sua conta em <button type="button" class="link" data-act="ext" data-v="https://meu.pluggy.ai">meu.pluggy.ai</button> e conecte cada banco (Itaú, Inter, Nubank, Caixa, Mercado Pago). O próprio banco pede a autorização no app dele.</li>' +
             '<li>No <button type="button" class="link" data-act="ext" data-v="https://dashboard.pluggy.ai">dashboard.pluggy.ai</button>, crie uma aplicação, adicione o conector MeuPluggy e copie o Client ID e o Client Secret.</li>' +
-            '<li>Cole os dois aqui. Eles ficam guardados só neste PC, criptografados pelo Windows.</li></ol>' + secretsForm) +
+            '<li>Cole os dois aqui. ' + (m.sync.web ? 'Eles ficam guardados criptografados no servidor e nunca voltam para o navegador.' : 'Eles ficam guardados só neste PC, criptografados pelo Windows.') + '</li></ol>' + secretsForm) +
         msg('secrets') + '</section>' +
 
         '<section class="panel"><h2 class="h2">2. Adicionar cada banco</h2><span class="sub">No dashboard da Pluggy, abra a aplicação Demo, autorize o MeuPluggy e copie o Item ID de cada banco. Um código por banco, não por conta.</span>' +
@@ -536,10 +536,14 @@
       '<div class="field"><label for="dsal">Dia do salário</label><input id="dsal" name="diaSalario" inputmode="numeric" value="' + esc(s.diaSalario) + '"><small>Se cair no fim de semana, o app conta o primeiro dia útil depois.</small></div>' +
       '<div class="field"><label for="inv">Quanto quer investir por mês</label><input id="inv" name="investir" inputmode="decimal" value="' + moneyRaw(s.investir) + '" placeholder="0,00"><small>Sai do salário antes da sobra. Deixe 0 se não for investir agora.</small></div>' +
       '<div class="field"><label for="cpf">Seu CPF (opcional)</label><input id="cpf" name="cpf" inputmode="numeric" placeholder="' + (s.cpf ? esc(s.cpf) : 'só números') + '"><small>Ajuda a reconhecer Pix entre contas suas. Fica só neste PC.</small></div>' +
-      '<div class="field"><label for="hrs">Sincronizar a cada</label><select id="hrs" name="syncHours">' + [1, 2, 3, 6, 12].map((h) => '<option value="' + h + '"' + (h === s.syncHours ? ' selected' : '') + '>' + h + (h === 1 ? ' hora' : ' horas') + '</option>').join('') + '</select></div>' +
-      '<div class="field"><label>Ao ligar o computador</label><label class="switch"><input type="checkbox" name="autoStart"' + (s.autoStart ? ' checked' : '') + (m.sync.autoStartAvailable ? '' : ' disabled') + '> Abrir o Meu Caixa junto com o Windows</label></div>' +
+      (m.sync.web ? '' : '<div class="field"><label for="hrs">Sincronizar a cada</label><select id="hrs" name="syncHours">' + [1, 2, 3, 6, 12].map((h) => '<option value="' + h + '"' + (h === s.syncHours ? ' selected' : '') + '>' + h + (h === 1 ? ' hora' : ' horas') + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label>Ao ligar o computador</label><label class="switch"><input type="checkbox" name="autoStart"' + (s.autoStart ? ' checked' : '') + (m.sync.autoStartAvailable ? '' : ' disabled') + '> Abrir o Meu Caixa junto com o Windows</label></div>'
+        + '') +
       '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar</button></div></form>' + msg('settings') + '</section>' +
 
+      (m.sync.web ? '<section class="panel"><h2 class="h2">Trazer do app de Windows</h2><span class="sub">Escolha o arquivo meu-caixa.json do app de Windows. Vêm junto bancos, lançamentos, despesas fixas, regras de categoria e o crédito do iFood. A chave da Pluggy não vem: cole aqui de novo.</span>' +
+        '<label class="btn small" style="align-self:flex-start;cursor:pointer">' + icon('down', 14, 2) + 'Escolher arquivo<input type="file" id="importar" accept=".json,application/json" hidden></label>' + msg('import') + '</section>' +
+        '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><h2 class="h2">Sua conta</h2><span class="sub">' + esc(api.email ? api.email() : '') + '</span></div><button type="button" class="btn small" data-act="logout">Sair desta conta</button></section>' : '') +
       '<section class="panel"><div class="head"><div><h2 class="h2">Categorias fixas</h2><span class="sub">Criadas quando você troca a categoria em Lançamentos e escolhe “Sempre”.</span></div></div>' +
       (m.catRules.length ? '<div class="list">' + m.catRules.map((r) => '<div class="li">' + tile(r.cat, true) + '<div class="grow"><span class="t">“' + esc(r.termo) + '”</span><span class="m">sempre ' + esc(r.label) + '</span></div>' +
         '<button type="button" class="icon-btn ghost" data-act="catrule-remove" data-v="' + esc(r.id) + '" aria-label="Apagar a regra ' + esc(r.termo) + '">' + icon('trash', 16) + '</button></div>').join('') + '</div>' : '<div class="empty-state" style="padding:12px">Nenhuma ainda.</div>') +
@@ -762,6 +766,7 @@
       case 'demo-start': S.screen = 'visao'; await run(api.startDemo(), 'demo'); break;
       case 'edit-secrets': S.editSecrets = true; render(); break;
       case 'ext': api.openExternal(v); break;
+      case 'logout': if (api.logout) api.logout(); break;
       default: break;
     }
   });
@@ -787,7 +792,7 @@
         investir: data.investir || '0',
         diaSalario: data.diaSalario || '1',
         syncHours: data.syncHours,
-        autoStart: !!form.querySelector('[name=autoStart]').checked
+        autoStart: !!(form.querySelector('[name=autoStart]') || {}).checked
       };
       if (data.cpf) patch.cpf = data.cpf;
       await run(api.saveSettings(patch), 'settings', 'Salvo.');
@@ -839,6 +844,20 @@
   }
 
   root.addEventListener('change', async (e) => {
+    if (e.target.id === 'importar' && e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      S.msg.import = { ok: true, text: 'Lendo o arquivo...' };
+      render();
+      try {
+        const data = JSON.parse(await file.text());
+        const res = await api.importDesktop(data);
+        S.msg.import = res && res.ok ? { ok: true, text: 'Pronto: ' + res.transacoes + ' lançamentos trazidos.' } : { ok: false, text: (res && res.message) || 'Não deu certo.' };
+      } catch (err) {
+        S.msg.import = { ok: false, text: 'Não consegui ler esse arquivo. Ele precisa ser o meu-caixa.json.' };
+      }
+      await load();
+      return;
+    }
     if (e.target.id === 'bf') { toggleFreq(e.target.value); return; }
     const sel = e.target.closest('select.cat-select');
     if (sel) {
