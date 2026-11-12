@@ -5,7 +5,8 @@ const webpush = require('web-push');
 const { buildModel } = require('./rules');
 
 const PREFS_DEFAULT = { compras: true, contas: true, limites: true, lembretes: true, alertas: true, resumo: true };
-const SITE = 'https://meucofrin.vercel.app';
+// Endereço do site, usado como contato nas notificações. A Vercel preenche VERCEL_PROJECT_PRODUCTION_URL sozinha.
+const SITE = process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : 'https://vercel.com');
 const DAY = 86400000;
 
 function prefs(db) {
