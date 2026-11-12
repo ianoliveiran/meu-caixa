@@ -1,10 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "echo 'sem dependências'",
+  "installCommand": "npm install --omit=dev --no-audit --no-fund",
   "buildCommand": "node web/build.js",
   "outputDirectory": "web/dist",
   "functions": {
     "api/rpc.js": {
+      "maxDuration": 60,
+      "includeFiles": "src/**"
+    },
+    "api/cron.js": {
       "maxDuration": 60,
       "includeFiles": "src/**"
     }
@@ -36,6 +40,19 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
         }
       ]
     }

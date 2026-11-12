@@ -437,3 +437,5 @@ html.dark .lem.due .m { color: #fbbf24; }
 .check-btn:hover, .check-btn:focus-visible { border-color: var(--green); color: var(--green); }
 html.dark .check-btn { border-color: #3a4560; }
 .bub .acao { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--blue-d); background: var(--blue-soft); border-radius: 999px; padding: 4px 10px; }
+.push-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.push-btns { display: flex; flex-wrap: wrap; gap: 8px; }

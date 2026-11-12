@@ -132,6 +132,40 @@
     removeMeta: call('meta:remove'),
     saveLimites: call('limites:save'),
     saveLembrete: call('lembrete:save'),
+    // Notificações neste aparelho.
+    pushState: async () => {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+      let endpoint = null;
+      if (supported) {
+        try { const reg = await navigator.serviceWorker.getRegistration('/'); const sub = reg && await reg.pushManager.getSubscription(); endpoint = sub ? sub.endpoint : null; } catch (e) { /* sem service worker */ }
+      }
+      return { supported, ios, standalone, permission: supported ? Notification.permission : 'unsupported', endpoint, firefox: /firefox/i.test(navigator.userAgent) };
+    },
+    pushEnable: async () => {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return { ok: false, message: perm === 'denied' ? 'As notificações estão bloqueadas para este site. Libere nas configurações do navegador e tente de novo.' : 'Você não permitiu as notificações.' };
+      const k = await rpc('push:key');
+      if (!k || !k.key) return { ok: false, message: 'Não consegui pegar a chave das notificações.' };
+      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      const raw = atob(k.key.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((k.key.length + 3) % 4));
+      const appKey = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+      const ua = navigator.userAgent;
+      const device = (/iphone/i.test(ua) ? 'iPhone' : /ipad/i.test(ua) ? 'iPad' : /android/i.test(ua) ? 'Android' : /windows/i.test(ua) ? 'Windows' : /mac os/i.test(ua) ? 'Mac' : 'Computador') +
+        ' · ' + (/edg\//i.test(ua) ? 'Edge' : /firefox/i.test(ua) ? 'Firefox' : /chrome|crios/i.test(ua) ? 'Chrome' : /safari/i.test(ua) ? 'Safari' : 'navegador');
+      const res = await rpc('push:subscribe', { sub: sub.toJSON(), device });
+      return res && res.ok ? { ok: true, endpoint: sub.endpoint } : res;
+    },
+    pushDisable: async (endpoint) => {
+      try { const reg = await navigator.serviceWorker.getRegistration('/'); const sub = reg && await reg.pushManager.getSubscription(); if (sub && sub.endpoint === endpoint) await sub.unsubscribe(); } catch (e) { /* segue */ }
+      return rpc('push:unsubscribe', endpoint);
+    },
+    pushTest: call('push:test'),
+    pushPrefs: call('push:prefs'),
     doneLembrete: call('lembrete:done'),
     openExternal: async (url) => { if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener'); return { ok: true }; },
     onChange: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((x) => x !== fn); }; },
@@ -147,6 +181,8 @@
   function loadScript(src) {
     return new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.body.appendChild(s); });
   }
+  if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}); } catch (e) { /* sem service worker */ } }
+
   async function startApp() {
     root.innerHTML = '<div class="loading">Abrindo seu caixa...</div>';
     await loadScript('art.js');

@@ -506,6 +506,34 @@
     return 'O valor guardado acompanha o saldo dessa conta sozinho.';
   }
 
+  const PUSH_TIPOS = [
+    ['compras', 'Compras e entradas novas', 'Quando os bancos atualizarem, um aviso com o que entrou e saiu.'],
+    ['contas', 'Contas vencendo', 'Na véspera e no dia do vencimento, de manhã. E se passar do dia sem aparecer paga.'],
+    ['limites', 'Limites por categoria', 'Quando chegar em 80% e quando passar do limite.'],
+    ['lembretes', 'Lembretes', 'No dia do lembrete, de manhã.'],
+    ['alertas', 'Gastos fora do normal', 'Compra bem acima do costume, cobrança repetida ou assinatura que ficou mais cara.'],
+    ['resumo', 'Resumo do mês', 'No começo do mês, como foi o mês que fechou.']
+  ];
+
+  function pushPanel(m) {
+    const info = S.pushInfo;
+    const pp = m.push || { aparelhos: [], prefs: {} };
+    const aqui = info && info.endpoint && pp.aparelhos.some((a) => a.endpoint === info.endpoint);
+    let estado;
+    if (!info) estado = '<span class="sub">Conferindo este aparelho...</span>';
+    else if (info.ios && !info.standalone) estado = '<div class="msg ok" style="background:var(--blue-soft);color:var(--blue-d)">No iPhone, as notificações só funcionam pelo app da tela de início. Abra o Meu Cofrin pelo ícone e ative por lá.</div>';
+    else if (!info.supported) estado = '<div class="msg err">Este navegador não aceita notificações de sites.</div>';
+    else if (info.permission === 'denied') estado = '<div class="msg err">As notificações estão bloqueadas para este site. Libere em Configurações do navegador → Notificações e volte aqui.</div>';
+    else if (aqui) estado = '<div class="push-row"><span class="good">' + icon('check', 14, 2) + 'Ativadas neste aparelho</span><span class="push-btns"><button type="button" class="btn small" data-act="push-test">Mandar um teste</button><button type="button" class="btn small" data-act="push-off" data-v="' + esc(info.endpoint) + '">Desativar aqui</button></span></div>';
+    else estado = '<div class="push-row"><span class="sub">Ainda não ativadas neste aparelho.</span><button type="button" class="btn small primary" data-act="push-on">' + icon('bell', 14, 2) + 'Ativar neste aparelho</button></div>' +
+      (info.firefox ? '<span class="sub">No Firefox, os avisos só chegam com o Firefox aberto. Para receber com tudo fechado no PC, use o Edge: abra o site, menu ⋯ → Aplicativos → Instalar este site como aplicativo, e ative por lá.</span>' : '');
+    return '<section class="panel" aria-label="Notificações"><div><h2 class="h2">Notificações</h2><span class="sub">Avisos no celular e no computador, mesmo com o app fechado. O app confere os bancos de hora em hora; ninguém é avisado entre 22h e 8h.</span></div>' +
+      estado + msg('push') +
+      (pp.aparelhos.length ? '<div class="list">' + pp.aparelhos.map((a) => '<div class="li">' + tile('celular', true) + '<div class="grow"><span class="t">' + esc(a.device) + (info && a.endpoint === info.endpoint ? ' <span class="pill blue" style="font-size:10px">este</span>' : '') + '</span><span class="m">ativado em ' + esc(dateBr(a.criado)) + '</span></div>' +
+        '<button type="button" class="icon-btn ghost" data-act="push-off" data-v="' + esc(a.endpoint) + '" aria-label="Parar de avisar o ' + esc(a.device) + '">' + icon('trash', 15) + '</button></div>').join('') + '</div>' : '') +
+      '<div class="feat-list">' + PUSH_TIPOS.map(([k, t, d]) => '<label class="feat"><span class="grow"><b>' + esc(t) + '</b><small>' + esc(d) + '</small></span><span class="toggle"><input type="checkbox" data-pushpref="' + k + '"' + (pp.prefs[k] !== false ? ' checked' : '') + '><span aria-hidden="true"></span></span></label>').join('') + '</div></section>';
+  }
+
   const FEATURES = [
     ['metas', 'Metas', 'Juntar para algo com prazo, como o apartamento, e quanto guardar por mês.'],
     ['limites', 'Limites por categoria', 'Um teto por mês para categorias como restaurantes. O sininho avisa em 80% e quando passar.'],
@@ -732,6 +760,7 @@
         + '') +
       '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar</button></div></form>' + msg('settings') + '</section>' +
 
+      (m.sync.web && api.pushState ? pushPanel(m) : '') +
       (m.sync.web ? featuresPanel(m) : '') +
       (m.sync.web ? '<section class="panel"><h2 class="h2">Trazer do app de Windows</h2><span class="sub">Escolha o arquivo meu-caixa.json do app de Windows. Vêm junto bancos, lançamentos, despesas fixas, regras de categoria e o crédito do iFood. A chave da Pluggy não vem: cole aqui de novo.</span>' +
         '<label class="btn small" style="align-self:flex-start;cursor:pointer">' + icon('down', 14, 2) + 'Escolher arquivo<input type="file" id="importar" accept=".json,application/json" hidden></label>' + msg('import') + '</section>' +
@@ -935,7 +964,10 @@
     else if (S.screen === 'cartoes') content = topBar(m) + screenCartoes(m);
     else if (S.screen === 'contas') content = topBar(m) + screenContas(m);
     else if (S.screen === 'fixas') content = topBar(m) + screenFixas(m);
-    else if (S.screen === 'bancos') content = topBar(m) + screenBancos(m);
+    else if (S.screen === 'bancos') {
+      content = topBar(m) + screenBancos(m);
+      if (S.pushInfo === undefined && api.pushState) { S.pushInfo = null; api.pushState().then((x) => { S.pushInfo = x; render(); }).catch(() => { S.pushInfo = { supported: false }; render(); }); }
+    }
     else if (S.screen === 'ia') content = topBar(m) + screenIA(m);
     else content = topBar(m) + screenVisao(m);
     root.innerHTML = '<div class="app">' + sidebar(m) + '<main class="main">' + content + '</main></div>' + dialog(m);
@@ -1054,6 +1086,28 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
         toast('Planilha baixada: ' + rows.length + ' lançamentos. Abre no Excel e no Google Planilhas.');
         break;
+      }
+      case 'push-on': {
+        el.disabled = true; S.msg.push = { ok: true, text: 'Ativando...' }; render();
+        let r;
+        try { r = await api.pushEnable(); } catch (err) { r = { ok: false, message: 'Não deu para ativar: ' + err.message }; }
+        S.msg.push = r && r.ok ? { ok: true, text: 'Pronto! Mandei uma notificação de teste.' } : { ok: false, text: (r && r.message) || 'Não deu certo.' };
+        S.pushInfo = await api.pushState();
+        await load();
+        if (r && r.ok) api.pushTest().catch(() => {});
+        break;
+      }
+      case 'push-test': {
+        el.disabled = true;
+        const r = await api.pushTest();
+        S.msg.push = r && r.ok ? { ok: true, text: 'Teste enviado. Deve chegar em alguns segundos.' } : { ok: false, text: (r && r.message) || 'Não deu certo.' };
+        await load(); break;
+      }
+      case 'push-off': {
+        await api.pushDisable(v);
+        S.pushInfo = await api.pushState();
+        S.msg.push = { ok: true, text: 'Esse aparelho não recebe mais avisos.' };
+        await load(); break;
       }
       case 'tema':
         try { localStorage.setItem('meucaixa-tema', v); } catch (err) { /* sem armazenamento */ }
@@ -1282,6 +1336,10 @@
       const l = document.getElementById('gg-label'); if (l) l.textContent = isBill ? 'Quanto já tinha pago antes' : 'Quanto já tem guardado';
       const hp = document.getElementById('gc-help'); if (hp) hp.textContent = metaFonteHelp(v);
       return;
+    }
+    if (e.target.dataset && e.target.dataset.pushpref) {
+      const patch = {}; patch[e.target.dataset.pushpref] = e.target.checked;
+      await api.pushPrefs(patch); await load(); return;
     }
     if (e.target.dataset && e.target.dataset.feature) {
       const patch = {}; patch[e.target.dataset.feature] = e.target.checked;

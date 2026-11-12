@@ -3,6 +3,7 @@
 // Usadas pela versão web: cada ação recebe o banco (objeto), o argumento e o ambiente.
 
 const assistant = require('./assistant');
+const push = require('./push');
 const { buildModel, CATS } = require('./rules');
 const { PluggyClient } = require('./pluggy');
 const { syncAll, removeItem } = require('./sync');
@@ -89,6 +90,8 @@ const actions = {
       conversas: chats.map((c) => ({ id: c.id, titulo: c.titulo, atualizada: c.atualizada, qtd: c.msgs.length })),
       messages: atual ? atual.msgs.map((x) => ({ role: x.role, content: x.content, at: x.at, acoes: x.acoes || null })) : []
     };
+    const pp = push.ensure(db);
+    m.push = { prefs: push.prefs(db), aparelhos: pp.subs.map((x) => ({ endpoint: x.endpoint, device: x.device, criado: x.criado })) };
     m.cats = Object.entries(CATS).filter(([k]) => k !== 'fatura').map(([k, v]) => ({ id: k, label: v.label }));
     return { result: m, changed: migrou };
   },
@@ -190,6 +193,29 @@ const actions = {
 
   'lembrete:done': async (db, id) => {
     db.lembretes = (db.lembretes || []).filter((l) => l.id !== id);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'push:subscribe': async (db, x = {}) => {
+    const sub = x.sub || {};
+    if (!/^https:\/\//.test(sub.endpoint || '') || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { result: { ok: false, message: 'O navegador não mandou a inscrição direito. Tente de novo.' } };
+    const p = push.ensure(db);
+    if (!p.subs.length) push.baseline(db, new Date());
+    p.subs = p.subs.filter((s) => s.endpoint !== sub.endpoint).concat([{ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, device: String(x.device || 'Aparelho').slice(0, 60), criado: new Date().toISOString() }]).slice(-10);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'push:unsubscribe': async (db, endpoint) => {
+    const p = push.ensure(db);
+    p.subs = p.subs.filter((s) => s.endpoint !== endpoint);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'push:prefs': async (db, patch = {}) => {
+    const p = push.ensure(db);
+    const cur = Object.assign({}, p.prefs || {});
+    for (const k of Object.keys(patch)) if (k in push.PREFS_DEFAULT) cur[k] = !!patch[k];
+    p.prefs = cur;
     return { result: { ok: true }, changed: true };
   },
 

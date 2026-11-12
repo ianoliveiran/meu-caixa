@@ -1,10 +1,13 @@
 'use strict';
+// Datas no horário de Brasília (o servidor roda em UTC).
+process.env.TZ = 'America/Sao_Paulo';
 // Única rota da versão web. Confere o login no Supabase, carrega o banco do usuário,
 // roda a ação e grava de volta. O banco só aceita leitura e escrita do próprio dono (RLS).
 
 const crypto = require('crypto');
 const { actions } = require('../src/actions');
 const { emptyDb } = require('../src/store');
+const push = require('../src/push');
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || '';
@@ -72,6 +75,25 @@ async function saveState(token, userId, db) {
   if (!res.ok) throw new Error('Não consegui salvar seus dados (' + res.status + ').');
 }
 
+async function rpcCall(token, fn, args) {
+  const res = await supa('/rest/v1/rpc/' + fn, token, { method: 'POST', body: JSON.stringify(args || {}) });
+  if (!res.ok) throw new Error('Supabase recusou ' + fn + ' (' + res.status + ').');
+  return res.json();
+}
+
+// Chave pública das notificações; na primeira vez, cria o par de chaves e guarda no banco.
+async function vapidKeys(token) {
+  let rows = await rpcCall(token, 'vapid_keys');
+  let k = rows && rows[0];
+  if (!k || !k.pub) {
+    const fresh = push.newKeys();
+    await rpcCall(token, 'vapid_init', { p_pub: fresh.publicKey, p_priv: fresh.privateKey });
+    rows = await rpcCall(token, 'vapid_keys');
+    k = rows && rows[0];
+  }
+  return k;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.statusCode = 405; return res.end(); }
@@ -88,6 +110,19 @@ module.exports = async (req, res) => {
     let body = req.body;
     if (typeof body === 'string') body = JSON.parse(body || '{}');
     const { action, arg, month } = body || {};
+    if (action === 'push:key') {
+      const k = await vapidKeys(token);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ result: { ok: true, key: k.pub } }));
+    }
+    if (action === 'push:test') {
+      if (loaded instanceof Error) throw loaded;
+      const k = await vapidKeys(token);
+      const r = await push.send(loaded, [{ title: 'Meu Cofrin', body: 'Notificações ligadas! É assim que os avisos vão chegar.', url: '/', tag: 'teste' }], k);
+      await saveState(token, user.id, loaded);
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ result: { ok: r.enviadas > 0, enviadas: r.enviadas, message: r.enviadas ? null : 'Nenhum aparelho recebeu. Ative as notificações neste aparelho primeiro.' } }));
+    }
     const fn = actions[action];
     if (!fn) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'ação desconhecida' })); }
 
