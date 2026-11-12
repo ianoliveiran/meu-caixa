@@ -574,7 +574,10 @@ function buildModel(db, opts) {
   return {
     plano,
     month: { key: mk, nome: ml.nome, ano: ml.ano, isCurrent: mk === monthKey(now), prev: addMonths(mk, -1), next: addMonths(mk, 1) },
-    sync: { last: db.lastSync || null, error: db.lastSyncError || null, demo: !!settings.demo, configured: !!(db.secrets && db.secrets.clientId) || !!settings.demo },
+    sync: { last: db.lastSync || null, error: db.lastSyncError || null, bancosEm: (() => {
+      const ds = Object.values(items).map((it) => it.lastUpdatedAt).filter(Boolean).map((x) => +new Date(x)).filter((x) => x > 0);
+      return ds.length ? new Date(Math.max.apply(null, ds)).toISOString() : null;
+    })(), demo: !!settings.demo, configured: !!(db.secrets && db.secrets.clientId) || !!settings.demo },
     renda: { valor: round2(renda), fonte: rendaFonte, salario },
     fluxo: {
       contasFixas, cartoes: cartoesMes, diaADia, reserva: reservaMes, sobra,

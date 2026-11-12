@@ -101,7 +101,7 @@
     } else if (m.sync.error) {
       box = '<div class="sync-box err"><span class="ic">' + icon('alert', 15, 1.8) + '</span><div><b>Algo falhou</b><span>' + esc(m.sync.error) + '</span></div></div>';
     } else if (m.sync.last) {
-      box = '<div class="sync-box ok"><span class="ic">' + icon('sync', 15, 1.8) + '</span><div><b>Sincronizado</b><span>' + esc(when(m.sync.last)) + ' · ' + m.bancos.length + (m.bancos.length === 1 ? ' banco' : ' bancos') + '</span></div></div>';
+      box = '<div class="sync-box ok"><span class="ic">' + icon('sync', 15, 1.8) + '</span><div><b>' + (m.sync.bancosEm ? 'Bancos atualizaram ' + esc(when(m.sync.bancosEm)) : 'Sincronizado') + '</b><span>Conferido ' + esc(when(m.sync.last)) + ' · o Open Finance atualiza uma vez por dia</span></div></div>';
     } else {
       box = '<div class="sync-box idle"><span class="ic">' + icon('sync', 15, 1.8) + '</span><div><b>Ainda não sincronizou</b><span>Conecte seus bancos em Bancos e ajustes.</span></div></div>';
     }
@@ -142,7 +142,7 @@
       '</div><div class="right">' +
       '<button type="button" class="icon-btn out" data-act="hide" aria-pressed="' + S.hide + '" aria-label="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '" title="' + (S.hide ? 'Mostrar valores' : 'Esconder valores') + '">' + icon(S.hide ? 'eyeoff' : 'eye') + '</button>' +
       '<div class="dropdown"><button type="button" class="icon-btn out" data-act="notif" aria-expanded="' + !!S.notif + '" aria-label="Notificações' + (m.novas ? ', ' + m.novas + (m.novas === 1 ? ' nova' : ' novas') : '') + '">' + icon('bell') + (m.novas ? '<span class="badge">' + m.novas + '</span>' : '') + '</button>' + (S.notif ? notifPanel(m) : '') + '</div>' +
-      '<button type="button" class="icon-btn out" data-act="sync" aria-label="Sincronizar agora"' + (S.syncing || m.sync.demo ? ' disabled' : '') + '>' + icon('sync', 18, 1.6).replace('<svg', S.syncing ? '<svg class="spin"' : '<svg') + '</button>' +
+      '<button type="button" class="icon-btn out" data-act="sync" aria-label="Sincronizar agora" title="' + (m.sync.bancosEm ? 'Bancos atualizaram ' + esc(when(m.sync.bancosEm)) + '. Clique para conferir se chegou algo novo.' : 'Sincronizar agora') + '"' + (S.syncing || m.sync.demo ? ' disabled' : '') + '>' + icon('sync', 18, 1.6).replace('<svg', S.syncing ? '<svg class="spin"' : '<svg') + '</button>' +
       '<div class="dropdown"><button type="button" class="btn primary" data-act="menu" aria-expanded="' + S.menu + '">' + icon('plus', 14, 2) + 'Adicionar' + icon('down', 14, 2) + '</button>' +
       (S.menu ? '<div class="menu"><button type="button" data-act="dlg-bill">' + tile('contas', true) + 'Despesa fixa (apartamento, luz...)</button><button type="button" data-act="dlg-bill" data-freq="unica">' + tile('calendar', true) + 'Conta a pagar (uma vez só)</button></div>' : '') +
       '</div></div></header>';
@@ -402,7 +402,7 @@
   function saldosPanel(m) {
     const p = m.plano;
     return '<section class="panel" style="flex:1 1 300px" aria-label="Dinheiro nas contas">' +
-      '<div class="head"><div><h2 class="h2">Dinheiro nas contas</h2><span class="sub">saldo de hoje em cada banco</span>' + bigNum(p.saldoContas) + '</div>' + ill.piggy + '</div>' +
+      '<div class="head"><div><h2 class="h2">Dinheiro nas contas</h2><span class="sub">' + (m.sync.bancosEm && !m.sync.demo ? 'bancos atualizaram ' + esc(when(m.sync.bancosEm)) : 'saldo de hoje em cada banco') + '</span>' + bigNum(p.saldoContas) + '</div>' + ill.piggy + '</div>' +
       '<div class="list">' + p.contas.map((c) => '<div class="li" style="padding:9px 0"><span class="tile s" aria-hidden="true" style="background:' + c.cor + ';color:#fff;font:700 12px var(--display)">' + esc(c.sigla) + '</span><div class="grow"><span class="t" style="font-weight:500">' + esc(c.nome) + '</span></div><span class="v"' + (c.saldo < 0 ? ' style="color:#be123c"' : '') + '>' + (c.saldo < 0 ? '− ' : '') + brl(c.saldo) + '</span></div>').join('') + '</div>' +
       (p.investir > 0 ? '<span class="sub">Você planeja investir ' + brl(p.investir) + ' por mês.</span>' : '<span class="sub">Investimento: nada por enquanto. <button type="button" class="link" data-act="nav" data-v="bancos">Mudar</button></span>') +
       '</section>';
@@ -793,8 +793,11 @@
         S.msg.sync = null;
         const res = await api.syncNow();
         if (res && res.ok === false && res.message) { S.msg.sync = { ok: false, text: res.message }; toast(res.message); }
-        else if (res && res.ok) toast(res.novas ? res.novas + ' lançamentos atualizados.' : 'Tudo em dia.');
         await load();
+        if (res && res.ok) {
+          const em = S.m && S.m.sync.bancosEm ? ' Os bancos mandaram dados ' + when(S.m.sync.bancosEm) + '.' : '';
+          toast((res.novas ? res.novas + (res.novas === 1 ? ' lançamento novo.' : ' lançamentos novos.') : 'Conferi agora: nada novo.') + em);
+        }
         break;
       }
       case 'card-step': {
