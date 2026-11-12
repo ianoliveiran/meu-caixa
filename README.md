@@ -55,7 +55,7 @@ O mesmo painel também roda como site, com login, usando Vercel e Supabase:
 - Os dados ficam numa linha por usuário em `app_state`, protegida por RLS (cada um só lê e grava a própria).
 - O Client Secret da Pluggy é guardado criptografado (AES-256-GCM) com a chave `SECRET_KEY`, que só existe na Vercel.
 - O cadastro é fechado: só e-mails da tabela `private.allowed_emails` conseguem criar senha.
-- Não há agendamento: o site atualiza os bancos quando você abre e a última atualização tem mais de 6 horas.
+- O agendador do Supabase (pg_cron) chama `/api/cron` de hora em hora: busca os bancos e manda as notificações (web push) para os aparelhos ativados. Veja `supabase/push.sql`.
 
 Variáveis na Vercel: `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SECRET_KEY` (32 bytes aleatórios em base64, por exemplo `openssl rand -base64 32`).
 
