@@ -150,8 +150,8 @@
   function notifPanel(m) {
     const list = S.notif.list || [];
     const item = (a) => '<button type="button" class="notif-item' + (a.novo ? ' novo' : '') + '" data-act="notif-open" data-v="' + esc(a.id) + '">' +
-      (a.tipo === 'conta' || a.tipo === 'limite' || a.tipo === 'alerta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? '#fff1f2' : '#fef3c7') + ';color:' + (a.atrasada ? '#be123c' : '#b45309') + '">' + icon(a.tipo === 'conta' && !a.atrasada ? 'calendar' : 'alert', 15, 1.8) + '</span>'
-        : a.tipo === 'resumo' ? '<span class="tile s" aria-hidden="true" style="background:#dcfce7;color:#15803d">' + icon('trend', 15, 1.8) + '</span>'
+      (a.tipo === 'conta' || a.tipo === 'limite' || a.tipo === 'alerta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? 'var(--soft-red-bg)' : 'var(--soft-amber-bg)') + ';color:' + (a.atrasada ? 'var(--red-fg)' : 'var(--soft-amber-fg)') + '">' + icon(a.tipo === 'conta' && !a.atrasada ? 'calendar' : 'alert', 15, 1.8) + '</span>'
+        : a.tipo === 'resumo' ? '<span class="tile s" aria-hidden="true" style="background:var(--soft-green-bg2);color:var(--soft-green-fg)">' + icon('trend', 15, 1.8) + '</span>'
         : a.tipo === 'lembrete' ? '<span class="tile s" aria-hidden="true" style="background:var(--blue-soft);color:var(--blue-d)">' + icon('bell', 15, 1.8) + '</span>'
         : mark(a.marca, a.cat, true)) +
       '<span class="grow"><b>' + esc(a.titulo) + '</b><small>' + esc(a.texto) + (a.tipo === 'tx' ? ' · chegou ' + esc(when(new Date(a.quando).toISOString())) : '') + '</small></span>' +
@@ -205,7 +205,7 @@
     return '<section class="panel" style="flex:2 1 520px;gap:22px" aria-label="Sobra prevista">' +
       '<div class="head"><div style="gap:14px"><h2 class="h2">' + (m.month.isCurrent ? 'Sobra prevista' : 'Sobra do mês') + '</h2>' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px">' +
-      (neg ? '<div class="huge" style="color:#be123c"><span class="rs">− R$ </span>' + money(f.sobra).split(',')[0] + '<span class="ct">,' + money(f.sobra).split(',')[1] + '</span></div>' : bigNum(f.sobra, 'huge')) +
+      (neg ? '<div class="huge" style="color:var(--red-fg)"><span class="rs">− R$ </span>' + money(f.sobra).split(',')[0] + '<span class="ct">,' + money(f.sobra).split(',')[1] + '</span></div>' : bigNum(f.sobra, 'huge')) +
       '<div style="display:flex;flex-direction:column;gap:2px;padding-left:16px;border-left:1px solid #e2e8f0">' +
       (renda > 0
         ? (neg ? '<span class="warn">Faltam ' + brl(-f.sobra) + ' no mês</span>' : '<span class="good">' + icon('up', 14, 2) + f.pct.sobra + '% da renda livre</span>')
@@ -215,7 +215,7 @@
       '<div class="legend">' +
       '<div><span class="k">' + (m.renda.fonte === 'previsto' ? 'Salário (previsto)' : 'Renda recebida') + '</span><span class="v">' + brl(renda) + '</span></div>' +
       segs.map((s) => '<div><span class="k"><span class="dot" style="background:' + s[2] + '"></span>' + s[0] + '</span><span class="v">− ' + brl(s[1]) + ' <small>' + s[3] + '%</small></span></div>').join('') +
-      '<div><span class="k"><span class="dot" style="background:#16a34a"></span>Sobra</span><span class="v" style="color:' + (neg ? '#be123c' : '#15803d') + '">' + (neg ? '− ' : '') + brl(f.sobra) + '</span></div>' +
+      '<div><span class="k"><span class="dot" style="background:#16a34a"></span>Sobra</span><span class="v" style="color:' + (neg ? 'var(--red-fg)' : 'var(--soft-green-fg)') + '">' + (neg ? '− ' : '') + brl(f.sobra) + '</span></div>' +
       '</div>' +
       (renda <= 0 ? '<button type="button" class="link" data-act="nav" data-v="bancos">Informar salário em Bancos e ajustes</button>' : '') +
       '</section>';
@@ -231,13 +231,13 @@
       (r.rendeuMes > 0 ? '<span class="good" style="font-size:13px">' + icon('check', 14, 2) + 'rendeu ' + brl(r.rendeuMes) + ' este mês</span>' : '') + '</div>' + ill.piggy + '</div>' +
       (r.meta > 0
         ? '<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;justify-content:space-between" class="sub"><span>' + Math.round(r.pct) + '% da meta</span><span>meta ' + brl(r.meta) + '</span></div>' +
-          '<div role="img" aria-label="' + Math.round(r.pct) + '% da meta" style="height:12px;background:#fce7f3;border-radius:6px"><div style="width:' + r.pct + '%;height:12px;background:linear-gradient(90deg,#f472b6,#db2777);border-radius:6px"></div></div></div>'
+          '<div role="img" aria-label="' + Math.round(r.pct) + '% da meta" style="height:12px;background:var(--soft-pink-bg);border-radius:6px"><div style="width:' + r.pct + '%;height:12px;background:linear-gradient(90deg,#f472b6,#db2777);border-radius:6px"></div></div></div>'
         : '<button type="button" class="link" data-act="nav" data-v="bancos" style="align-self:flex-start">Definir uma meta</button>') +
       '<div class="tiles">' +
       '<div>' + tile('reserva') + '<div><span>Guardado no mês</span><b>' + brl(r.guardadoMes) + '</b></div></div>' +
-      '<div><span class="tile" aria-hidden="true" style="background:#dcfce7;color:#15803d">' + icon('trend') + '</span><div><span>Rendeu no mês</span><b>' + brl(r.rendeuMes) + '</b></div></div>' +
-      (r.meta > 0 ? '<div><span class="tile" aria-hidden="true" style="background:#dbeafe;color:#1d4ed8">' + icon('target') + '</span><div><span>Falta</span><b>' + brl(r.falta) + '</b></div></div>' +
-        '<div><span class="tile" aria-hidden="true" style="background:#fef3c7;color:#b45309">' + icon('calendar') + '</span><div><span>Nesse ritmo</span><b>' + (r.falta <= 0 ? 'Meta batida' : (r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') : 'guarde algo')) + '</b></div></div>' : '') +
+      '<div><span class="tile" aria-hidden="true" style="background:var(--soft-green-bg2);color:var(--soft-green-fg)">' + icon('trend') + '</span><div><span>Rendeu no mês</span><b>' + brl(r.rendeuMes) + '</b></div></div>' +
+      (r.meta > 0 ? '<div><span class="tile" aria-hidden="true" style="background:var(--soft-blue-bg2);color:var(--soft-blue-fg2)">' + icon('target') + '</span><div><span>Falta</span><b>' + brl(r.falta) + '</b></div></div>' +
+        '<div><span class="tile" aria-hidden="true" style="background:var(--soft-amber-bg);color:var(--soft-amber-fg)">' + icon('calendar') + '</span><div><span>Nesse ritmo</span><b>' + (r.falta <= 0 ? 'Meta batida' : (r.meses ? r.meses + (r.meses === 1 ? ' mês' : ' meses') : 'guarde algo')) + '</b></div></div>' : '') +
       '</div></section>';
   }
 
@@ -268,7 +268,7 @@
       return '<div class="mbox' + (on ? ' on' : '') + '"><b style="font-size:13px">' + esc(p.mes) + '</b>' +
         '<span class="pill ' + (on ? 'blue' : (p.estado === 'Paga' ? 'green' : 'gray')) + '" style="font-size:10px;padding:2px 8px">' + esc(p.estado) + '</span>' +
         '<div class="chart"><svg aria-hidden="true" viewBox="0 0 100 64" preserveAspectRatio="none">' +
-        (on ? '<polygon points="' + pts + ' 100,64 0,64" fill="var(--blue-soft)"/>' : '') +
+        (on ? '<polygon points="' + pts + ' 100,64 0,64" style="fill:var(--blue-soft)"/>' : '') +
         '<polyline points="' + pts + '" fill="none" stroke="' + stroke + '" stroke-width="2"' + (on ? '' : ' stroke-dasharray="4 4"') + ' vector-effect="non-scaling-stroke"/></svg>' +
         '<span class="pt" style="top:' + ys[k].toFixed(1) + 'px;border-color:' + stroke + '"></span></div>' +
         '<b style="font-size:13px;color:' + (on ? 'var(--blue-d)' : 'var(--ink-2)') + '">' + brl(p.valor) + '</b></div>';
@@ -294,13 +294,13 @@
       (n > 1 ? '<div style="display:flex;gap:6px"><button type="button" class="round" data-act="card-step" data-v="-1" aria-label="Cartão anterior">' + icon('left', 14, 2) + '</button><button type="button" class="round" data-act="card-step" data-v="1" aria-label="Próximo cartão">' + icon('right', 14, 2) + '</button></div>' : '') +
       '</div>' +
       '<div class="stack"><div class="spacer" aria-hidden="true"></div>' + stack + '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5b6474">' + (a.manual ? 'Fatura · ' : 'Últimas faturas · ') + esc(a.nome) + '</span>' + proxBoxes(a) +
+      '<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">' + (a.manual ? 'Fatura · ' : 'Últimas faturas · ') + esc(a.nome) + '</span>' + proxBoxes(a) +
       (a.manual ? '<button type="button" class="btn small rose" style="align-self:flex-start" data-act="dlg-credit" data-v="' + esc(a.manualId) + '">' + icon('pencil', 14) + 'Atualizar gasto e limite</button>' : '') + '</div>' +
       '</section>';
   }
 
   function billRow(b) {
-    const tone = b.status.tom === 'ok' ? 'color:#15803d;font-weight:600' : (b.status.tom === 'alerta' ? 'color:#b45309;font-weight:600' : '');
+    const tone = b.status.tom === 'ok' ? 'color:var(--soft-green-fg);font-weight:600' : (b.status.tom === 'alerta' ? 'color:var(--soft-amber-fg);font-weight:600' : '');
     return '<div class="li' + (b.paid ? ' paid' : '') + '">' +
       '<button type="button" class="check' + (b.paid ? ' on' : '') + '" data-act="bill-mark" data-v="' + esc(b.id) + '" data-paid="' + (b.paid ? '0' : '1') + '" aria-pressed="' + b.paid + '" aria-label="' + (b.paid ? 'Desmarcar ' : 'Marcar ') + esc(b.nome) + ' como paga"><span>' + icon('check', 12, 2.4) + '</span></button>' +
       mark(b.marca, b.icon, true) +
@@ -363,7 +363,7 @@
       off += len;
       return s;
     }).join('');
-    return '<svg class="ill" role="img" aria-label="Divisão dos gastos por categoria" width="80" height="80" viewBox="0 0 76 76"><circle cx="38" cy="38" r="26" fill="none" stroke="#f1f5f9" stroke-width="14"/>' + segs + '</svg>';
+    return '<svg class="ill" role="img" aria-label="Divisão dos gastos por categoria" width="80" height="80" viewBox="0 0 76 76"><circle cx="38" cy="38" r="26" fill="none" style="stroke:var(--slate-bg)" stroke-width="14"/>' + segs + '</svg>';
   }
 
   function categoriasPanel(m) {
@@ -388,7 +388,7 @@
     const credits = m.manualCredits.map((x) => '<div style="display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid #eef1f6">' +
       '<div class="li" style="padding:0;border:0">' + mark(/ifood/i.test(x.nome) ? { sigla: 'iF', cor: '#ea1d2c', fg: '#ffffff' } : null, 'restaurantes') +
       '<div class="grow"><span class="t">' + esc(x.nome) + '</span><span class="m">gasto ' + brl(x.gastoAtual) + ' de ' + brl(x.limite) + ' · paga dia ' + String(x.dia).padStart(2, '0') + '</span></div>' +
-      '<div style="text-align:right"><span class="sub" style="display:block">livre</span><span class="v" style="color:#15803d">' + brl(x.livre) + '</span></div>' +
+      '<div style="text-align:right"><span class="sub" style="display:block">livre</span><span class="v" style="color:var(--soft-green-fg)">' + brl(x.livre) + '</span></div>' +
       '<button type="button" class="icon-btn ghost" data-act="dlg-credit" data-v="' + esc(x.id) + '" aria-label="Editar ' + esc(x.nome) + '">' + icon('pencil', 16) + '</button></div>' +
       '<div class="track" role="img" aria-label="Limite usado" style="height:8px"><div style="height:8px;width:' + (x.limite > 0 ? Math.min(100, x.gastoAtual / x.limite * 100).toFixed(1) : 0) + '%;background:#e11d48"></div></div>' +
       (x.recentes.length ? '<div class="list">' + x.recentes.map((c) => '<div class="li" style="padding:6px 0;border-top:0"><div class="grow"><span class="t" style="font-weight:500">' + esc(c.descricao) + '</span><span class="m">' + esc(c.data) + '</span></div><span class="v">' + brl(c.valor) + '</span>' +
@@ -400,9 +400,9 @@
     const pixPanel = p.qtd
       ? '<section class="panel" aria-label="Pix no crédito"><div class="head"><div><h2 class="h2">Pix no crédito</h2><span class="sub">' + p.qtd + (p.qtd === 1 ? ' Pix' : ' Pix') + ' no crédito este mês</span>' + bigNum(p.total) + '</div>' + ill.lightning + '</div>' +
         '<div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros do mês</span><b>' + brl(p.taxas) + '</b></div></div></div>' +
-        (m.pixAno && m.pixAno.qtd ? '<div class="tiles"><div>' + tile('pix') + '<div><span>Pix no crédito no ano</span><b>' + brl(m.pixAno.total) + '</b></div></div><div>' + tile('taxas') + '<div><span>Taxas no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div>' : '') +
+        (m.pixAno && m.pixAno.qtd ? '<div class="tiles"><div>' + tile('pix') + '<div><span>Pix no crédito no ano</span><b>' + brl(m.pixAno.total) + '</b></div></div><div>' + tile('taxas') + '<div><span>Taxas no ano</span><b style="color:var(--red-fg)">' + brl(m.pixAno.taxas) + '</b></div></div></div>' : '') +
         '<span class="sub">As taxas são as linhas de juros, IOF e tarifa que aparecem nas faturas dos cartões.</span></section>'
-      : (m.pixAno && m.pixAno.qtd ? '<section class="panel" aria-label="Pix no crédito no ano"><div class="head"><div><h2 class="h2">Pix no crédito em ' + m.pixAno.ano + '</h2><span class="sub">' + m.pixAno.qtd + ' Pix no crédito no ano</span>' + bigNum(m.pixAno.total) + '</div>' + ill.lightning + '</div><div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div></section>' : '');
+      : (m.pixAno && m.pixAno.qtd ? '<section class="panel" aria-label="Pix no crédito no ano"><div class="head"><div><h2 class="h2">Pix no crédito em ' + m.pixAno.ano + '</h2><span class="sub">' + m.pixAno.qtd + ' Pix no crédito no ano</span>' + bigNum(m.pixAno.total) + '</div>' + ill.lightning + '</div><div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros no ano</span><b style="color:var(--red-fg)">' + brl(m.pixAno.taxas) + '</b></div></div></div></section>' : '');
     return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + ((m.features || {}).lembretes && m.lembretes ? lembretesPanel(m) : '') + pixPanel + manualPanel + '</div>';
   }
 
@@ -457,7 +457,7 @@
         const cor = l.pct >= 100 ? '#e11d48' : l.pct >= 80 ? '#f59e0b' : catStyle(l.cat).bar;
         return '<button type="button" class="cat cat-btn" data-act="cat-open" data-v="' + esc(l.cat) + '">' + tile(l.cat) + '<div class="grow"><div class="line"><span style="font-weight:600">' + esc(l.label) + '</span><b style="white-space:nowrap">' + brl(l.gasto) + ' <span class="sub">de ' + brl(l.valor) + '</span></b></div>' +
           '<div class="track"><div style="width:' + Math.min(100, l.pct).toFixed(1) + '%;background:' + cor + '"></div></div>' +
-          '<span class="sub" style="color:' + (l.pct >= 100 ? '#be123c' : l.pct >= 80 ? '#b45309' : 'var(--muted)') + '">' + (l.resta >= 0 ? 'restam ' + brl(l.resta) : 'passou ' + brl(-l.resta)) + '</span></div></button>';
+          '<span class="sub" style="color:' + (l.pct >= 100 ? 'var(--red-fg)' : l.pct >= 80 ? 'var(--soft-amber-fg)' : 'var(--muted)') + '">' + (l.resta >= 0 ? 'restam ' + brl(l.resta) : 'passou ' + brl(-l.resta)) + '</span></div></button>';
       }).join('') + '</div></section>';
   }
 
@@ -471,12 +471,12 @@
     const y = (v) => H - (v / mx) * (H - 10);
     const bars = h.map((x, i) => {
       const cx = col * i + col / 2;
-      return '<rect x="' + (cx - bw - 2).toFixed(1) + '" y="' + y(x.entrou).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.entrou)).toFixed(1) + '" rx="4" fill="var(--green)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Entrou ' + brl(x.entrou) + '</title></rect>' +
-        '<rect x="' + (cx + 2).toFixed(1) + '" y="' + y(x.saiu).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.saiu)).toFixed(1) + '" rx="4" fill="var(--rose)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Saiu ' + brl(x.saiu) + '</title></rect>';
+      return '<rect x="' + (cx - bw - 2).toFixed(1) + '" y="' + y(x.entrou).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.entrou)).toFixed(1) + '" rx="4" style="fill:var(--green)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Entrou ' + brl(x.entrou) + '</title></rect>' +
+        '<rect x="' + (cx + 2).toFixed(1) + '" y="' + y(x.saiu).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.saiu)).toFixed(1) + '" rx="4" style="fill:var(--rose)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Saiu ' + brl(x.saiu) + '</title></rect>';
     }).join('');
     return '<section class="panel" aria-label="Últimos meses"><div class="head"><div><h2 class="h2">Últimos meses</h2><span class="sub">Quanto entrou e quanto saiu em cada mês. O mês atual está mais claro porque ainda não fechou.</span></div>' +
       '<div class="legend-mini"><span><i style="background:var(--green)"></i>Entrou</span><span><i style="background:var(--rose)"></i>Saiu</span></div></div>' +
-      '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 2) + '" role="img" aria-label="Entradas e saídas dos últimos meses" preserveAspectRatio="none"><line x1="0" x2="' + W + '" y1="' + H + '" y2="' + H + '" stroke="var(--line)"/>' + bars + '</svg>' +
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 2) + '" role="img" aria-label="Entradas e saídas dos últimos meses" preserveAspectRatio="none"><line x1="0" x2="' + W + '" y1="' + H + '" y2="' + H + '" style="stroke:var(--line)"/>' + bars + '</svg>' +
       '<div class="chart-x" style="grid-template-columns:repeat(' + h.length + ',1fr)">' + h.map((x) => '<div><b>' + esc(x.mes) + '</b><span class="' + (x.sobra >= 0 ? 'pos' : 'neg') + '">' + (x.sobra >= 0 ? 'sobrou ' : 'faltou ') + brl(Math.abs(x.sobra)) + '</span></div>').join('') + '</div></section>';
   }
 
@@ -563,7 +563,7 @@
     return '<section class="panel" style="flex:2 1 520px;gap:20px" aria-label="Livre até o salário">' +
       '<div class="head"><div style="gap:14px"><h2 class="h2">Livre até o salário <small>· salário previsto ' + esc(p.salarioDia) + '</small></h2>' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px">' +
-      '<div class="huge"' + (neg ? ' style="color:#be123c"' : '') + '><span class="rs">' + (neg ? '− ' : '') + 'R$ </span>' + parts[0] + '<span class="ct">,' + parts[1] + '</span></div>' +
+      '<div class="huge"' + (neg ? ' style="color:var(--red-fg)"' : '') + '><span class="rs">' + (neg ? '− ' : '') + 'R$ </span>' + parts[0] + '<span class="ct">,' + parts[1] + '</span></div>' +
       '<div style="display:flex;flex-direction:column;gap:2px;padding-left:16px;border-left:1px solid #e2e8f0">' +
       '<span class="sub" style="font-size:13px">' + brl(p.saldoContas) + ' nas contas hoje</span>' +
       (p.totalAntes > 0 ? '<span class="warn" style="font-size:13px">− ' + brl(p.totalAntes) + ' que vence antes do salário</span>' : '<span class="good" style="font-size:13px">' + icon('check', 14, 2) + 'nada vence antes do salário</span>') +
@@ -571,14 +571,14 @@
       (p.antes.length ? '<div class="list">' + p.antes.map(row).join('') + '</div>' : '') +
       '<div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid #eef1f6;padding-top:16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><h3 class="h2">Salário de ' + esc(p.salarioMes) + '</h3>' +
-      (p.salario > 0 ? '<span class="sub">sobram <b style="color:' + (sobraNeg ? '#be123c' : '#15803d') + ';font-size:15px">' + (sobraNeg ? '− ' : '') + brl(p.sobraSalario) + '</b> para o dia a dia</span>' : '<button type="button" class="link" data-act="nav" data-v="bancos">Informar o salário</button>') + '</div>' +
+      (p.salario > 0 ? '<span class="sub">sobram <b style="color:' + (sobraNeg ? 'var(--red-fg)' : 'var(--soft-green-fg)') + ';font-size:15px">' + (sobraNeg ? '− ' : '') + brl(p.sobraSalario) + '</b> para o dia a dia</span>' : '<button type="button" class="link" data-act="nav" data-v="bancos">Informar o salário</button>') + '</div>' +
       (p.salario > 0 ? '<div class="bar" role="img" aria-label="Como o salário se divide">' + seg(p.faturasDepois, '#2563eb') + seg(p.fixasDepois, '#1e3a8a') + seg(p.investir, '#ec4899') + seg(Math.max(0, p.sobraSalario), '#16a34a') + '</div>' : '') +
       '<div class="legend">' +
       '<div><span class="k">Salário</span><span class="v">' + brl(p.salario) + '</span></div>' +
       '<div><span class="k"><span class="dot" style="background:#2563eb"></span>Faturas</span><span class="v">− ' + brl(p.faturasDepois) + '</span></div>' +
       '<div><span class="k"><span class="dot" style="background:#1e3a8a"></span>Despesas fixas</span><span class="v">− ' + brl(p.fixasDepois) + '</span></div>' +
       '<div><span class="k"><span class="dot" style="background:#ec4899"></span>Investir</span><span class="v">− ' + brl(p.investir) + '</span></div>' +
-      '<div><span class="k"><span class="dot" style="background:#16a34a"></span>Sobra</span><span class="v" style="color:' + (sobraNeg ? '#be123c' : '#15803d') + '">' + (sobraNeg ? '− ' : '') + brl(p.sobraSalario) + '</span></div>' +
+      '<div><span class="k"><span class="dot" style="background:#16a34a"></span>Sobra</span><span class="v" style="color:' + (sobraNeg ? 'var(--red-fg)' : 'var(--soft-green-fg)') + '">' + (sobraNeg ? '− ' : '') + brl(p.sobraSalario) + '</span></div>' +
       '</div>' +
       (p.depois.length ? '<details class="det"><summary>Ver o que sai do salário (' + p.depois.length + ')</summary><div class="list">' + p.depois.map(row).join('') + '</div></details>' : '') +
       (!m.settings.bills.length ? '<span class="sub">Cadastre o apartamento e o que mais você paga todo mês em <button type="button" class="link" data-act="nav" data-v="fixas">Despesas fixas</button> para essa conta ficar completa.</span>' : '') +
@@ -589,7 +589,7 @@
     const p = m.plano;
     return '<section class="panel" style="flex:1 1 300px" aria-label="Dinheiro nas contas">' +
       '<div class="head"><div><h2 class="h2">Dinheiro nas contas</h2><span class="sub">' + (m.sync.bancosEm && !m.sync.demo ? 'bancos atualizaram ' + esc(when(m.sync.bancosEm)) : 'saldo de hoje em cada banco') + '</span>' + bigNum(p.saldoContas) + '</div>' + ill.piggy + '</div>' +
-      '<div class="list">' + p.contas.map((c) => '<div class="li" style="padding:9px 0"><span class="tile s" aria-hidden="true" style="background:' + c.cor + ';color:#fff;font:700 12px var(--display)">' + esc(c.sigla) + '</span><div class="grow"><span class="t" style="font-weight:500">' + esc(c.nome) + '</span></div><span class="v"' + (c.saldo < 0 ? ' style="color:#be123c"' : '') + '>' + (c.saldo < 0 ? '− ' : '') + brl(c.saldo) + '</span></div>').join('') + '</div>' +
+      '<div class="list">' + p.contas.map((c) => '<div class="li" style="padding:9px 0"><span class="tile s" aria-hidden="true" style="background:' + c.cor + ';color:#fff;font:700 12px var(--display)">' + esc(c.sigla) + '</span><div class="grow"><span class="t" style="font-weight:500">' + esc(c.nome) + '</span></div><span class="v"' + (c.saldo < 0 ? ' style="color:var(--red-fg)"' : '') + '>' + (c.saldo < 0 ? '− ' : '') + brl(c.saldo) + '</span></div>').join('') + '</div>' +
       (p.investir > 0 ? '<span class="sub">Você planeja investir ' + brl(p.investir) + ' por mês.</span>' : '<span class="sub">Investimento: nada por enquanto. <button type="button" class="link" data-act="nav" data-v="bancos">Mudar</button></span>') +
       '</section>';
   }
@@ -675,9 +675,9 @@
     const avulsas = m.settings.bills.filter((b) => b.freq === 'unica');
     return '<section class="panel" aria-label="Contas do mês">' +
       '<div style="display:flex;flex-wrap:wrap;gap:16px">' +
-      '<div style="flex:1 1 180px;background:#fff7ed;border-radius:16px;padding:16px"><span class="sub" style="color:#9a3412;font-weight:600">Em aberto</span><div class="big" style="font-size:30px">' + brl(t.aberto) + '</div></div>' +
-      '<div style="flex:1 1 180px;background:#f0fdf4;border-radius:16px;padding:16px"><span class="sub" style="color:#166534;font-weight:600">Já pago</span><div class="big" style="font-size:30px;color:#15803d">' + brl(t.pago) + '</div></div>' +
-      '<div style="flex:1 1 180px;background:#eff6ff;border-radius:16px;padding:16px"><span class="sub" style="color:#1e40af;font-weight:600">Pagas</span><div class="big" style="font-size:30px">' + t.pagas + ' de ' + t.total + '</div></div></div>' +
+      '<div style="flex:1 1 180px;background:var(--soft-orange-bg);border-radius:16px;padding:16px"><span class="sub" style="color:var(--soft-orange-fg);font-weight:600">Em aberto</span><div class="big" style="font-size:30px">' + brl(t.aberto) + '</div></div>' +
+      '<div style="flex:1 1 180px;background:var(--soft-green-bg);border-radius:16px;padding:16px"><span class="sub" style="color:var(--soft-green-fg2);font-weight:600">Já pago</span><div class="big" style="font-size:30px;color:var(--soft-green-fg)">' + brl(t.pago) + '</div></div>' +
+      '<div style="flex:1 1 180px;background:var(--soft-blue-bg);border-radius:16px;padding:16px"><span class="sub" style="color:var(--soft-blue-fg);font-weight:600">Pagas</span><div class="big" style="font-size:30px">' + t.pagas + ' de ' + t.total + '</div></div></div>' +
       (m.bills.length ? '<div style="max-width:560px;display:flex;flex-direction:column;gap:8px">' + dayPills(m) + '</div>' : '') +
       '<div class="list">' + m.bills.filter(filt).map(billRow).join('') + '</div>' +
       '<span class="sub">Uma conta fica paga sozinha quando o pagamento aparece no extrato ou no cartão. Se o app errar, clique no círculo para corrigir.</span></section>' +
@@ -712,17 +712,17 @@
     const bancos = m.bancos.length
       ? '<div class="list">' + m.bancos.map((b) => '<div class="li" style="flex-wrap:wrap">' +
           '<span class="tile" aria-hidden="true" style="background:' + b.cor + ';color:#fff;font:700 14px var(--display)">' + esc(b.sigla) + '</span>' +
-          '<div class="grow" style="flex:1 1 200px"><span class="t">' + esc(b.nome) + (b.reserva ? ' <span class="pill" style="background:#fce7f3;color:#be185d;font-size:10px">reserva</span>' : '') + '</span><span class="m">' + esc(b.tipo) + (b.consentimento ? ' · autorizado até ' + esc(dateBr(b.consentimento)) : '') + '</span></div>' +
-          '<span class="m" style="flex:1 1 200px;font-weight:600;color:' + (b.erro ? '#be123c' : '#15803d') + '">' + (b.erro ? esc(b.erro) : 'Atualizado ' + esc(when(b.atualizado || m.sync.last))) + '</span>' +
+          '<div class="grow" style="flex:1 1 200px"><span class="t">' + esc(b.nome) + (b.reserva ? ' <span class="pill" style="background:var(--soft-pink-bg);color:var(--soft-pink-fg);font-size:10px">reserva</span>' : '') + '</span><span class="m">' + esc(b.tipo) + (b.consentimento ? ' · autorizado até ' + esc(dateBr(b.consentimento)) : '') + '</span></div>' +
+          '<span class="m" style="flex:1 1 200px;font-weight:600;color:' + (b.erro ? 'var(--red-fg)' : 'var(--soft-green-fg)') + '">' + (b.erro ? esc(b.erro) : 'Atualizado ' + esc(when(b.atualizado || m.sync.last))) + '</span>' +
           '<span class="v">' + brl(b.saldo) + '</span>' +
           (m.sync.demo ? '' : '<button type="button" class="icon-btn ghost" data-act="item-remove" data-v="' + esc(b.id) + '" aria-label="Remover ' + esc(b.nome) + '">' + icon('trash', 16) + '</button>') +
           '</div>').join('') + '</div>'
       : '<div class="empty-state" style="padding:12px">Nenhum banco ainda.</div>';
     const pending = s.items.filter((it) => !m.bancos.some((b) => b.id === it.id));
-    const pendingList = pending.length ? '<div class="list">' + pending.map((it) => '<div class="li"><span class="tile s" style="background:#f1f5f9;color:#475569">' + icon('link', 16) + '</span><div class="grow"><span class="t">' + esc(it.label || 'Banco') + '</span><span class="m">' + esc(it.id) + ' · aguardando a próxima sincronização</span></div><button type="button" class="icon-btn ghost" data-act="item-remove" data-v="' + esc(it.id) + '" aria-label="Remover">' + icon('trash', 16) + '</button></div>').join('') + '</div>' : '';
+    const pendingList = pending.length ? '<div class="list">' + pending.map((it) => '<div class="li"><span class="tile s" style="background:var(--slate-bg);color:var(--slate-fg)">' + icon('link', 16) + '</span><div class="grow"><span class="t">' + esc(it.label || 'Banco') + '</span><span class="m">' + esc(it.id) + ' · aguardando a próxima sincronização</span></div><button type="button" class="icon-btn ghost" data-act="item-remove" data-v="' + esc(it.id) + '" aria-label="Remover">' + icon('trash', 16) + '</button></div>').join('') + '</div>' : '';
 
     const demoBanner = m.sync.demo
-      ? '<section class="panel" style="background:#fffbeb;border-color:#fde68a"><h2 class="h2">Você está vendo dados de exemplo</h2><span class="sub" style="color:#92400e">Nada disso é seu. Quando quiser usar com seus bancos, saia do exemplo: os dados de exemplo são apagados e o app fica pronto para conectar.</span><button type="button" class="btn" style="align-self:flex-start" data-act="demo-stop">Sair do exemplo</button></section>'
+      ? '<section class="panel" style="background:var(--soft-amber-bg2);border-color:var(--soft-amber-line)"><h2 class="h2">Você está vendo dados de exemplo</h2><span class="sub" style="color:var(--soft-amber-fg2)">Nada disso é seu. Quando quiser usar com seus bancos, saia do exemplo: os dados de exemplo são apagados e o app fica pronto para conectar.</span><button type="button" class="btn" style="align-self:flex-start" data-act="demo-stop">Sair do exemplo</button></section>'
       : '';
 
     const secretsForm = '<form data-form="secrets" class="form"><div class="field"><label for="cid">Client ID</label><input id="cid" name="clientId" autocomplete="off" spellcheck="false"></div>' +
