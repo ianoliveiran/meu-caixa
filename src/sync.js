@@ -4,6 +4,8 @@
 // compras pendentes viram definitivas e às vezes mudam de valor.
 
 const FIRST_DAYS = 200;
+// Uma vez por conta, tenta trazer o histórico mais antigo que o banco ainda tiver (até 1 ano).
+const BACKFILL_DAYS = 365;
 const OVERLAP_DAYS = 20;
 
 function ymd(d) {
@@ -47,6 +49,16 @@ async function syncAll(db, client, onProgress) {
   const now = new Date();
   const errors = [];
   const before = new Set(Object.keys(db.transactions || {}));
+  if (!db.backfill) db.backfill = {};
+  // Lançamentos de bancos removidos: se o mesmo banco for conectado de novo, não duplica.
+  const archivedIdx = new Map();
+  for (const t of Object.values(db.transactions)) {
+    const acc = db.accounts[t.accountId];
+    if (!acc || !acc.arquivada) continue;
+    const k = dupKey(acc.bankLabel, acc.type, t);
+    if (!archivedIdx.has(k)) archivedIdx.set(k, []);
+    archivedIdx.get(k).push(t.id);
+  }
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -73,10 +85,39 @@ async function syncAll(db, client, onProgress) {
           ? new Date(last.getFullYear(), last.getMonth(), last.getDate() - OVERLAP_DAYS)
           : new Date(now.getFullYear(), now.getMonth(), now.getDate() - FIRST_DAYS);
         const txs = await client.fetchAllTransactions(a.id, ymd(from));
+        const fresh = new Set(txs.map((t) => t.id));
+        const freshList = txs.map(slimTx);
+        // Nada é apagado só porque o banco parou de mandar. Só sai o que foi claramente substituído:
+        // uma compra pendente (que vira definitiva com outro código) ou uma que voltou igual com outro código.
         for (const [id, t] of Object.entries(db.transactions)) {
-          if (t.accountId === a.id && new Date(t.date) >= from) delete db.transactions[id];
+          if (t.accountId !== a.id || new Date(t.date) < from || fresh.has(id)) continue;
+          if (t.status === 'PENDING' || replacedBy(t, freshList)) delete db.transactions[id];
+          else if (!t.sumiuEm) t.sumiuEm = now.toISOString();
         }
-        for (const t of txs) db.transactions[t.id] = slimTx(t);
+        const label = it.label || rec.connectorName || '';
+        for (const t of freshList) {
+          db.transactions[t.id] = t;
+          const old = archivedIdx.get(dupKey(label, a.type, t));
+          if (old && old.length) delete db.transactions[old.shift()];
+        }
+        // Histórico mais antigo, uma vez por conta: só acrescenta o que ainda não temos.
+        if (!db.backfill[a.id]) {
+          try {
+            const oldFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - BACKFILL_DAYS);
+            const firstHave = Object.values(db.transactions).filter((t) => t.accountId === a.id).reduce((m, t) => (new Date(t.date) < m ? new Date(t.date) : m), now);
+            if (firstHave - oldFrom > 7 * 86400000) {
+              const older = await client.fetchAllTransactions(a.id, ymd(oldFrom), ymd(firstHave));
+              for (const raw of older) {
+                if (db.transactions[raw.id]) continue;
+                const t = slimTx(raw);
+                const dup = archivedIdx.get(dupKey(label, a.type, t));
+                if (dup && dup.length) delete db.transactions[dup.shift()];
+                db.transactions[t.id] = t;
+              }
+            }
+            db.backfill[a.id] = now.toISOString();
+          } catch (e) { /* tenta de novo na próxima */ }
+        }
         if (a.type === 'CREDIT') db.billsByAccount[a.id] = (await client.fetchBills(a.id)).map(slimBill);
         db.accountSync[a.id] = now.toISOString();
       }
@@ -95,15 +136,31 @@ async function syncAll(db, client, onProgress) {
   return { novas, errors };
 }
 
+// Remover um banco não apaga o histórico: as contas viram "arquivadas" (fora dos saldos)
+// e os lançamentos continuam. Se o banco voltar com outro código, os repetidos são trocados pelos novos.
 function removeItem(db, itemId) {
-  const accIds = Object.values(db.accounts).filter((a) => a.itemId === itemId).map((a) => a.id);
-  for (const id of accIds) {
-    delete db.accounts[id];
-    delete db.billsByAccount[id];
-    delete db.accountSync[id];
+  const label = ((db.settings.items || []).find((x) => x.id === itemId) || {}).label || (db.items[itemId] && db.items[itemId].connectorName) || '';
+  for (const a of Object.values(db.accounts).filter((x) => x.itemId === itemId)) {
+    db.accounts[a.id] = Object.assign({}, a, { arquivada: true, bankLabel: label, itemId: 'arquivado:' + itemId });
+    delete db.billsByAccount[a.id];
+    delete db.accountSync[a.id];
   }
-  for (const [id, t] of Object.entries(db.transactions)) if (accIds.includes(t.accountId)) delete db.transactions[id];
   delete db.items[itemId];
+}
+
+function normTxt(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function dupKey(bank, type, t) {
+  return normTxt(bank) + '|' + type + '|' + String(t.date).slice(0, 10) + '|' + Number(t.amount).toFixed(2) + '|' + normTxt(t.description).slice(0, 24);
+}
+
+// O banco às vezes troca o código de um lançamento: mesmo valor, data próxima e descrição parecida.
+function replacedBy(t, freshList) {
+  const d = new Date(t.date);
+  const desc = normTxt(t.description).slice(0, 8);
+  return freshList.some((f) => Number(f.amount).toFixed(2) === Number(t.amount).toFixed(2) && Math.abs(new Date(f.date) - d) <= 5 * 86400000 && normTxt(f.description).slice(0, 8) === desc);
 }
 
 module.exports = { syncAll, removeItem, slimTx };

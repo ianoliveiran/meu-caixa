@@ -75,11 +75,11 @@ class PluggyClient {
     return body.results || [];
   }
 
-  async fetchAllTransactions(accountId, dateFrom) {
+  async fetchAllTransactions(accountId, dateFrom, dateTo) {
     const out = [];
     let after;
     for (let guard = 0; guard < 200; guard++) {
-      const body = await this.get('v2/transactions', { accountId, dateFrom, after });
+      const body = await this.get('v2/transactions', { accountId, dateFrom, dateTo, after });
       out.push(...(body.results || []));
       if (!body.next) break;
       after = new URL(body.next, BASE).searchParams.get('after');

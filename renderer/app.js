@@ -643,7 +643,7 @@
     function rowHtml(t) {
           const st = catStyle(t.cat);
           const fixed = ['card_payment', 'card_payment_in', 'transfer_in', 'transfer_out'].includes(t.kind);
-          return '<tr><td><span class="desc">' + mark(t.marca, t.cat, true) + '<span>' + esc(t.nome) + (t.tag ? '<br><span class="sub">' + esc(t.tag) + '</span>' : '') + '</span></span></td>' +
+          return '<tr><td><span class="desc">' + mark(t.marca, t.cat, true) + '<span>' + esc(t.nome) + (t.tag || t.guardado ? '<br><span class="sub">' + esc(t.tag || '') + (t.tag && t.guardado ? ' · ' : '') + (t.guardado ? '<span class="pill gray" style="font-size:10px" title="O Open Finance não manda mais esse lançamento, mas ele continua guardado no app.">guardado · ' + esc(t.guardado) + '</span>' : '') + '</span>' : '') + '</span></span></td>' +
             '<td class="sub" style="white-space:nowrap">' + esc(t.data) + '</td>' +
             '<td>' + (fixed ? '<span class="pill" style="background:' + st.bg + ';color:' + st.fg + '">' + esc(t.catLabel) + '</span>'
               : '<select class="cat-select" data-tx="' + esc(t.id) + '" aria-label="Categoria de ' + esc(t.nome) + '" style="background:' + st.bg + ';color:' + st.fg + '">' + options(t.cat) + '</select>') + '</td>' +
@@ -1144,7 +1144,7 @@
         render(); break;
       }
       case 'item-remove': {
-        S.dialog = { type: 'confirm', title: 'Remover esse banco?', text: 'As contas, cartões e lançamentos dele saem do app. Para voltar, é só adicionar o Item ID de novo.', yes: 'Remover', run: () => api.removeItem(v) };
+        S.dialog = { type: 'confirm', title: 'Remover esse banco?', text: 'O banco para de atualizar e sai dos saldos, mas os lançamentos antigos dele continuam guardados no histórico. Se conectar de novo, nada fica repetido.', yes: 'Remover', run: () => api.removeItem(v) };
         render(); break;
       }
       case 'demo-stop': {

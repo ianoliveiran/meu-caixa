@@ -184,5 +184,31 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
     await assert.rejects(syncAll(local, new PluggyClient('x', 'y', bad)), /Client ID ou o Client Secret/);
   });
 
+  await test('nada do Open Finance se perde: some do banco, banco removido, reconectado', async () => {
+    const { syncAll: sa, removeItem: rm } = require('../src/sync');
+    const { emptyDb: ed } = require('../src/store');
+    const d = ed();
+    d.settings.items = [{ id: 'it1', label: 'Nubank' }];
+    let txs = [
+      { id: 'a', date: '2026-11-05T12:00:00Z', description: 'Mercado X', type: 'DEBIT', amount: -50, status: 'POSTED' },
+      { id: 'b', date: '2026-11-06T12:00:00Z', description: 'Uber', type: 'DEBIT', amount: -20, status: 'PENDING' },
+      { id: 'c', date: '2026-11-07T12:00:00Z', description: 'Farmacia', type: 'DEBIT', amount: -30, status: 'POSTED' }
+    ];
+    const cl = { auth: async () => 'k', fetchItem: async () => ({ status: 'UPDATED' }), fetchBills: async () => [],
+      fetchAccounts: async (id) => [{ id: id === 'it1' ? 'acc1' : 'acc9', type: 'BANK', balance: 100, name: 'Conta' }],
+      fetchAllTransactions: async (acc, from, to) => (to ? [] : txs.map((t) => Object.assign({ accountId: acc }, t))) };
+    await sa(d, cl);
+    txs = [{ id: 'b2', date: '2026-11-06T12:00:00Z', description: 'Uber', type: 'DEBIT', amount: -20, status: 'POSTED' }, txs[2]];
+    await sa(d, cl);
+    assert.ok(d.transactions.a && d.transactions.a.sumiuEm, 'o que sumiu do banco continua guardado');
+    assert.ok(!d.transactions.b && d.transactions.b2, 'pendente trocado pelo definitivo');
+    rm(d, 'it1');
+    assert.strictEqual(Object.keys(d.transactions).length, 3, 'remover o banco não apaga o histórico');
+    d.settings.items = [{ id: 'it2', label: 'Nubank' }];
+    txs = [{ id: 'n1', date: '2026-11-07T12:00:00Z', description: 'Farmacia', type: 'DEBIT', amount: -30, status: 'POSTED' }];
+    await sa(d, cl);
+    assert.ok(!d.transactions.c && d.transactions.n1, 'reconectar não duplica');
+  });
+
   console.log('\n' + passed + ' testes passaram');
 })();

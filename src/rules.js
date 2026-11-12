@@ -328,20 +328,22 @@ function buildModel(db, opts) {
   const now = (opts && opts.now) ? toDate(opts.now) : new Date();
   const mk = (opts && opts.month) || monthKey(now);
   const settings = db.settings || {};
-  const accounts = Object.values(db.accounts || {});
-  const accById = new Map(accounts.map((a) => [a.id, a]));
+  // Contas de um banco que foi removido continuam guardadas ("arquivada") só para o histórico.
+  const allAccounts = Object.values(db.accounts || {});
+  const accounts = allAccounts.filter((a) => !a.arquivada);
+  const accById = new Map(allAccounts.map((a) => [a.id, a]));
   const items = db.items || {};
 
   const bankNameOf = (acc) => {
     const it = items[acc.itemId];
     const label = (settings.items || []).find((x) => x.id === acc.itemId);
-    return shortBankName((label && label.label) || (it && it.connectorName) || acc.marketingName || acc.name);
+    return shortBankName((label && label.label) || acc.bankLabel || (it && it.connectorName) || acc.marketingName || acc.name);
   };
 
   const ctx = {
-    ownDocs: new Set([digits(settings.cpf)].concat(accounts.map((a) => digits(a.taxNumber))).filter((d) => d.length >= 11)),
-    ownNames: new Set(accounts.map((a) => norm(a.owner)).filter(Boolean)),
-    ownShort: Array.from(new Set(accounts.map((a) => norm(a.owner).split(' ').slice(0, 3).join(' ')).filter((n) => n.split(' ').length >= 2)))
+    ownDocs: new Set([digits(settings.cpf)].concat(allAccounts.map((a) => digits(a.taxNumber))).filter((d) => d.length >= 11)),
+    ownNames: new Set(allAccounts.map((a) => norm(a.owner)).filter(Boolean)),
+    ownShort: Array.from(new Set(allAccounts.map((a) => norm(a.owner).split(' ').slice(0, 3).join(' ')).filter((n) => n.split(' ').length >= 2)))
   };
 
   // Lista normalizada de todas as transações.
@@ -365,6 +367,8 @@ function buildModel(db, opts) {
       salary: !!c.salary,
       cat: c.cat,
       pending: tx.status === 'PENDING',
+      sumiu: !!tx.sumiuEm,
+      arquivada: !!acc.arquivada,
       inst: tx.creditCardMetadata && tx.creditCardMetadata.totalInstallments > 1
         ? { n: tx.creditCardMetadata.installmentNumber || 1, total: tx.creditCardMetadata.totalInstallments }
         : null
@@ -520,7 +524,8 @@ function buildModel(db, opts) {
     termo: suggestTerm(t.description),
     marca: ['card_payment', 'card_payment_in'].includes(t.kind) ? bankBrand(t.kind === 'card_payment' && t.paysCard && accById.get(t.paysCard) ? bankNameOf(accById.get(t.paysCard)) : t.bank)
       : (['transfer_in', 'transfer_out', 'internal', 'yield'].includes(t.kind) ? bankBrand(t.bank) : brandFor(t.text + ' ' + t.description)),
-    pending: t.pending
+    pending: t.pending,
+    guardado: t.sumiu || t.arquivada ? (t.arquivada ? 'banco removido' : 'não veio mais do banco') : null
   });
   const compras = all.filter((t) => t.kind === 'expense' || t.kind === 'pix_credit').slice(0, 6).map(label);
   const lancamentos = monthTx.map(label);
