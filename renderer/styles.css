@@ -485,3 +485,17 @@ td.fix-cell { width: 84px; white-space: nowrap; }
 .table-wrap { max-width: 100%; }
 .table-wrap { position: relative; }
 .sr { left: 0; top: 0; }
+
+/* Local logos keep their original proportions in both themes. */
+.tile.brand-logo { width: 40px; overflow: hidden; }
+.tile.brand-logo img { display: block; width: 28px; height: 28px; object-fit: contain; }
+.tile.s.brand-logo { width: 34px; }
+.tile.s.brand-logo img { width: 24px; height: 24px; }
+.cc .bank { display: flex; align-items: center; min-height: 40px; }
+.card-bank-logo { display: block; width: 88px; height: 40px; object-fit: contain; object-position: left center; }
+.credit-brand { flex: 0 0 80px; display: flex; align-items: center; justify-content: center; }
+.credit-brand .brand-logo { flex-basis: 72px; width: 72px; height: 64px; border-radius: 18px; }
+.credit-brand .brand-logo img { width: 52px; height: 48px; }
+html.dark .tile.brand-logo { filter: none; }
+
+.card-bank-logo.bank-light { background: #fff; border-radius: 6px; padding: 6px; }

@@ -93,10 +93,20 @@
     return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
   }
   const catStyle = (c) => CAT[c] || CAT.outros;
-  // Selo com as iniciais da empresa nas cores dela; sem selo, o ícone da categoria.
+  // Logos locais das marcas conhecidas; iniciais e categoria para nomes sem logo.
   function mark(mk, cat, small) {
     if (!mk) return tile(cat, small);
+    const brand = window.BRAND_LOGOS.forMark(mk);
+    if (brand) return '<span class="tile' + (small ? ' s' : '') + ' brand brand-logo" aria-hidden="true" style="background:' + (brand.fullColor ? '#ffffff' : brand.cor) + '"><img src="' + brand.src + '" alt="" width="28" height="28"></span>';
     return '<span class="tile' + (small ? ' s' : '') + ' brand" aria-hidden="true" style="background:' + mk.cor + ';color:' + mk.fg + '">' + esc(mk.sigla) + '</span>';
+  }
+
+  function markName(name, cat, small) {
+    return mark(window.BRAND_LOGOS.forName(name), cat, small);
+  }
+  function cardBank(name) {
+    const brand = window.BRAND_LOGOS.forName(name);
+    return brand ? '<img class="card-bank-logo' + (brand.key === 'c6bank' ? ' bank-light' : '') + '" src="' + brand.src + '" alt="' + esc(name) + '" width="88" height="40">' : esc(name);
   }
 
   let toastTimer = null;
@@ -247,7 +257,7 @@
     const attrs = o.button ? ' type="button" data-act="card-pick" data-v="' + o.index + '" aria-label="Mostrar cartão ' + esc(c.nome) + '"' : '';
     const style = o.style || '';
     return '<' + tag + attrs + ' class="cc' + (o.flat ? ' flat' : '') + '" style="background:' + c.bg + ';' + style + '"><span class="sheen" aria-hidden="true"></span>' +
-      '<span><span class="bank" style="color:' + c.nameColor + '">' + esc(c.nome) + '</span><span class="state">' + esc(c.atual.estado) + '</span></span>' +
+      '<span><span class="bank" style="color:' + c.nameColor + '">' + cardBank(c.nome) + '</span><span class="state">' + esc(c.atual.estado) + '</span></span>' +
       '<span>' + ill.chip + '<span class="num">' + (c.manual ? 'LANÇADO À MÃO' : '•••• ' + esc(c.final)) + '</span>' + ill.wave + '</span>' +
       '<span style="align-items:flex-end"><span><span class="lbl">Vence</span><span class="val">' + esc(c.atual.vence) + '</span></span>' +
       '<span style="text-align:right"><span class="lbl">Limite livre</span><span class="val">' + brl(c.livre) + '</span></span></span>' +
@@ -383,10 +393,10 @@
 
   function sidePanels(m) {
     const p = m.pixCredito;
-    const manual = m.manual.map((x) => '<div class="li">' + tile('restaurantes') + '<div class="grow"><span class="t">' + esc(x.nome) + ' <span class="pill amber" style="font-size:10px">à mão</span></span><span class="m">atualizado em ' + esc(dateBr(x.atualizado)) + '</span></div><span class="v">' + brl(x.valor) + '</span>' +
+    const manual = m.manual.map((x) => '<div class="li">' + markName(x.nome, 'restaurantes') + '<div class="grow"><span class="t">' + esc(x.nome) + ' <span class="pill amber" style="font-size:10px">à mão</span></span><span class="m">atualizado em ' + esc(dateBr(x.atualizado)) + '</span></div><span class="v">' + brl(x.valor) + '</span>' +
       '<button type="button" class="icon-btn ghost" data-act="dlg-manual" data-v="' + esc(x.id) + '" aria-label="Atualizar ' + esc(x.nome) + '">' + icon('pencil', 16) + '</button></div>').join('');
     const credits = m.manualCredits.map((x) => '<div style="display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid #eef1f6">' +
-      '<div class="li" style="padding:0;border:0">' + mark(/ifood/i.test(x.nome) ? { sigla: 'iF', cor: '#ea1d2c', fg: '#ffffff' } : null, 'restaurantes') +
+      '<div class="li" style="padding:0;border:0">' + markName(x.nome, 'restaurantes') +
       '<div class="grow"><span class="t">' + esc(x.nome) + '</span><span class="m">gasto ' + brl(x.gastoAtual) + ' de ' + brl(x.limite) + ' · paga dia ' + String(x.dia).padStart(2, '0') + '</span></div>' +
       '<div style="text-align:right"><span class="sub" style="display:block">livre</span><span class="v" style="color:var(--soft-green-fg)">' + brl(x.livre) + '</span></div>' +
       '<button type="button" class="icon-btn ghost" data-act="dlg-credit" data-v="' + esc(x.id) + '" aria-label="Editar ' + esc(x.nome) + '">' + icon('pencil', 16) + '</button></div>' +
@@ -394,7 +404,7 @@
       (x.recentes.length ? '<div class="list">' + x.recentes.map((c) => '<div class="li" style="padding:6px 0;border-top:0"><div class="grow"><span class="t" style="font-weight:500">' + esc(c.descricao) + '</span><span class="m">' + esc(c.data) + '</span></div><span class="v">' + brl(c.valor) + '</span>' +
         '<button type="button" class="icon-btn ghost" data-act="compra-remove" data-v="' + esc(c.id) + '" data-credit="' + esc(x.id) + '" aria-label="Apagar a compra ' + esc(c.descricao) + '">' + icon('trash', 15) + '</button></div>').join('') + '</div>' : '') +
       '<button type="button" class="btn small rose" style="align-self:flex-start" data-act="dlg-compra" data-v="' + esc(x.id) + '">' + icon('plus', 14, 2) + 'Lançar compra</button></div>').join('');
-    const manualPanel = '<section class="panel" aria-label="iFood e outros créditos"><div class="head"><div><h2 class="h2">iFood e outros créditos</h2><span class="sub">Esses não vêm do banco. Lance cada compra aqui e o limite livre se atualiza. No dia do pagamento, marque a fatura como paga em Contas a pagar.</span></div>' + ill.burger + '</div>' +
+    const manualPanel = '<section class="panel" aria-label="iFood e outros créditos"><div class="head"><div><h2 class="h2">iFood e outros créditos</h2><span class="sub">Esses não vêm do banco. Lance cada compra aqui e o limite livre se atualiza. No dia do pagamento, marque a fatura como paga em Contas a pagar.</span></div>' + '<span class="credit-brand" aria-hidden="true">' + markName('iFood', 'restaurantes') + '</span></div>' +
       (credits ? '<div style="display:flex;flex-direction:column">' + credits + '</div>' : '') +
       '<button type="button" class="btn small" style="align-self:flex-start" data-act="dlg-credit">' + icon('plus', 14, 2) + 'Novo crédito</button></section>';
     const pixPanel = p.qtd
@@ -606,7 +616,7 @@
     const p = m.plano;
     return '<section class="panel" style="flex:1 1 300px" aria-label="Dinheiro nas contas">' +
       '<div class="head"><div><h2 class="h2">Dinheiro nas contas</h2><span class="sub">' + (m.sync.bancosEm && !m.sync.demo ? 'bancos atualizaram ' + esc(when(m.sync.bancosEm)) : 'saldo de hoje em cada banco') + '</span>' + bigNum(p.saldoContas) + '</div>' + ill.piggy + '</div>' +
-      '<div class="list">' + p.contas.map((c) => '<div class="li" style="padding:9px 0"><span class="tile s" aria-hidden="true" style="background:' + c.cor + ';color:#fff;font:700 12px var(--display)">' + esc(c.sigla) + '</span><div class="grow"><span class="t" style="font-weight:500">' + esc(c.nome) + '</span></div><span class="v"' + (c.saldo < 0 ? ' style="color:var(--red-fg)"' : '') + '>' + (c.saldo < 0 ? '− ' : '') + brl(c.saldo) + '</span></div>').join('') + '</div>' +
+      '<div class="list">' + p.contas.map((c) => '<div class="li" style="padding:9px 0">' + mark(window.BRAND_LOGOS.forName(c.nome) || { sigla: c.sigla, cor: c.cor, fg: '#fff' }, 'contas', true) + '<div class="grow"><span class="t" style="font-weight:500">' + esc(c.nome) + '</span></div><span class="v"' + (c.saldo < 0 ? ' style="color:var(--red-fg)"' : '') + '>' + (c.saldo < 0 ? '− ' : '') + brl(c.saldo) + '</span></div>').join('') + '</div>' +
       (p.investir > 0 ? '<span class="sub">Você planeja investir ' + brl(p.investir) + ' por mês.</span>' : '<span class="sub">Investimento: nada por enquanto. <button type="button" class="link" data-act="nav" data-v="bancos">Mudar</button></span>') +
       '</section>';
   }
@@ -733,7 +743,7 @@
     const configured = m.sync.configured && !m.sync.demo;
     const bancos = m.bancos.length
       ? '<div class="list">' + m.bancos.map((b) => '<div class="li" style="flex-wrap:wrap">' +
-          '<span class="tile" aria-hidden="true" style="background:' + b.cor + ';color:#fff;font:700 14px var(--display)">' + esc(b.sigla) + '</span>' +
+          mark(window.BRAND_LOGOS.forName(b.nome) || { sigla: b.sigla, cor: b.cor, fg: '#fff' }, 'contas') +
           '<div class="grow" style="flex:1 1 200px"><span class="t">' + esc(b.nome) + (b.reserva ? ' <span class="pill" style="background:var(--soft-pink-bg);color:var(--soft-pink-fg);font-size:10px">reserva</span>' : '') + '</span><span class="m">' + esc(b.tipo) + (b.consentimento ? ' · autorizado até ' + esc(dateBr(b.consentimento)) : '') + '</span></div>' +
           '<span class="m" style="flex:1 1 200px;font-weight:600;color:' + (b.erro ? 'var(--red-fg)' : 'var(--soft-green-fg)') + '">' + (b.erro ? esc(b.erro) : 'Atualizado ' + esc(when(b.atualizado || m.sync.last))) + '</span>' +
           '<span class="v">' + brl(b.saldo) + '</span>' +
