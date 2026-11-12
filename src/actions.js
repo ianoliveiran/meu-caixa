@@ -2,6 +2,7 @@
 // Ações do app (as mesmas da versão de Windows), sem depender do Electron.
 // Usadas pela versão web: cada ação recebe o banco (objeto), o argumento e o ambiente.
 
+const assistant = require('./assistant');
 const { buildModel, CATS } = require('./rules');
 const { PluggyClient } = require('./pluggy');
 const { syncAll, removeItem } = require('./sync');
@@ -78,6 +79,11 @@ const actions = {
     m.sync.autoStartAvailable = false;
     m.sync.web = true;
     m.sync.stale = configured && !db.settings.demo && m.sync.hasItems && (!db.lastSync || (Date.now() - new Date(db.lastSync)) > STALE_MS);
+    m.ai = {
+      configured: !!(db.secrets && db.secrets.openai),
+      model: (db.settings.ai && db.settings.ai.model) || assistant.DEFAULT_MODEL,
+      messages: (db.chat || []).map((x) => ({ role: x.role, content: x.content, at: x.at }))
+    };
     m.cats = Object.entries(CATS).filter(([k]) => k !== 'fatura').map(([k, v]) => ({ id: k, label: v.label }));
     return { result: m };
   },
@@ -96,7 +102,35 @@ const actions = {
     } catch (err) {
       return { result: { ok: false, message: err.message } };
     }
-    db.secrets = { clientId: env.enc(clientId), clientSecret: env.enc(clientSecret) };
+    db.secrets = Object.assign({}, db.secrets, { clientId: env.enc(clientId), clientSecret: env.enc(clientSecret) });
+    return { result: { ok: true }, changed: true };
+  },
+
+  'ai:key': async (db, { key, model } = {}, env) => {
+    key = String(key || '').trim();
+    model = String(model || '').trim();
+    if (model && !/^[a-z0-9][a-z0-9.\-]{1,60}$/i.test(model)) return { result: { ok: false, message: 'Esse nome de modelo não parece certo.' } };
+    if (key) {
+      if (!/^sk-/.test(key)) return { result: { ok: false, message: 'A chave da OpenAI começa com sk-. Confira se copiou ela inteira.' } };
+      try { await assistant.testKey(key); } catch (err) { return { result: { ok: false, message: err.message } }; }
+      db.secrets = Object.assign({}, db.secrets, { openai: env.enc(key) });
+    }
+    if (model) db.settings.ai = Object.assign({}, db.settings.ai, { model });
+    return { result: { ok: true }, changed: true };
+  },
+
+  'ai:send': async (db, text, env) => {
+    const res = await assistant.chat(db, text, env);
+    return { result: res, changed: !!res.ok };
+  },
+
+  'ai:clear': async (db) => {
+    db.chat = [];
+    return { result: { ok: true }, changed: true };
+  },
+
+  'ai:forget': async (db) => {
+    if (db.secrets) delete db.secrets.openai;
     return { result: { ok: true }, changed: true };
   },
 
@@ -243,6 +277,8 @@ const actions = {
     }
     const keep = ['items', 'accounts', 'transactions', 'billsByAccount', 'accountSync', 'manual', 'billMarks', 'catOverrides', 'catRules', 'lastSync', 'lastSyncError'];
     const secrets = db.secrets;
+    const chat = db.chat;
+    const ai = db.settings && db.settings.ai;
     const base = emptyDb();
     for (const k of Object.keys(db)) delete db[k];
     Object.assign(db, base);
@@ -251,6 +287,8 @@ const actions = {
     delete s.autoStart; delete s.syncHours; delete s.trayHintShown; delete s.demo;
     db.settings = Object.assign(base.settings, s, { demo: false });
     db.secrets = secrets || {};
+    if (chat) db.chat = chat;
+    if (ai) db.settings.ai = ai;
     // Sem as credenciais, a próxima sincronização refaz só a janela recente.
     return { result: { ok: true, transacoes: Object.keys(db.transactions || {}).length }, changed: true };
   }

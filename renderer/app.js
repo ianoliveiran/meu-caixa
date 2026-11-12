@@ -106,15 +106,15 @@
     }
     return '<nav class="side" aria-label="Menu">' +
       '<div class="brand">' + window.ART.ill.logo + '<div><b>Meu Cofrin</b><small>Finanças pessoais</small></div></div>' +
-      '<div class="nav"><span class="nav-label">Menu</span>' + NAV.map(navBtn).join('') + '</div>' +
+      '<div class="nav"><span class="nav-label">Menu</span>' + (m.sync.web ? NAV.slice(0, 1).concat([['ia', 'Conversar', 'chat']], NAV.slice(1)) : NAV).map(navBtn).join('') + '</div>' +
       '<div class="nav"><span class="nav-label">Ajustes</span>' + navBtn(['bancos', 'Bancos e ajustes', 'bank']) + '</div>' +
       '<div class="side-foot">' + box + '</div></nav>';
   }
 
   function topBar(m) {
-    const titles = { visao: null, lanc: 'Lançamentos', cartoes: 'Cartões', contas: 'Contas a pagar', fixas: 'Despesas fixas', bancos: 'Bancos e ajustes' };
+    const titles = { visao: null, lanc: 'Lançamentos', cartoes: 'Cartões', contas: 'Contas a pagar', fixas: 'Despesas fixas', bancos: 'Bancos e ajustes', ia: 'Conversar' };
     const t = titles[S.screen];
-    const monthNav = S.screen !== 'bancos' && S.screen !== 'fixas';
+    const monthNav = S.screen !== 'bancos' && S.screen !== 'fixas' && S.screen !== 'ia';
     const h1 = t
       ? esc(t) + (monthNav ? ' <span>· ' + esc(m.month.nome.toLowerCase()) + ' ' + m.month.ano + '</span>' : '')
       : esc(m.month.nome) + ' <span>' + m.month.ano + '</span>';
@@ -551,6 +551,68 @@
       '';
   }
 
+  // ---------- Conversar (IA) ----------
+  function md(text) {
+    const lines = esc(text).split('\n');
+    let html = '';
+    let list = false;
+    for (const raw of lines) {
+      const line = raw.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      const item = line.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
+      if (item) { if (!list) { html += '<ul>'; list = true; } html += '<li>' + item[1] + '</li>'; continue; }
+      if (list) { html += '</ul>'; list = false; }
+      if (line.trim()) html += '<p>' + line.replace(/^#+\s*/, '') + '</p>';
+    }
+    if (list) html += '</ul>';
+    return html;
+  }
+
+  const AI_SUGESTOES = [
+    'Para onde está indo a maior parte do meu dinheiro?',
+    'Quanto consigo guardar por mês para o apartamento?',
+    'Monta um orçamento para o próximo mês',
+    'Tem algum gasto que eu deveria cortar?',
+    'Como está minha fatura dos cartões este mês?'
+  ];
+
+  function screenIA(m) {
+    const ai = m.ai || {};
+    const keyForm = '<form data-form="aikey" class="form"><div class="field"><label for="aik">Chave da API da OpenAI</label><input id="aik" name="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-..."><small>Fica guardada criptografada no servidor e nunca volta para o navegador.</small></div>' +
+      '<div class="field"><label for="aim">Modelo</label><input id="aim" name="model" autocomplete="off" spellcheck="false" value="' + esc(ai.model || '') + '"><small>Pode deixar como está.</small></div>' +
+      '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar e testar</button></div></form>' + msg('aikey');
+    if (!ai.configured || S.editAi) {
+      return '<section class="panel"><h2 class="h2">Converse sobre o seu dinheiro</h2><span class="sub">Um assistente que conhece seus saldos, cartões, contas e os lançamentos dos últimos meses. Tira dúvidas, debate decisões e ajuda a planejar.</span>' +
+        '<ol class="steps"><li>Entre em <button type="button" class="link" data-act="ext" data-v="https://platform.openai.com/api-keys">platform.openai.com/api-keys</button> e clique em <b>Create new secret key</b>.</li><li>Copie a chave (começa com sk-) e cole aqui.</li></ol>' + keyForm +
+        (ai.configured ? '<button type="button" class="link" style="align-self:flex-start" data-act="ai-edit" data-v="0">Cancelar</button>' : '') + '</section>';
+    }
+    const msgs = (ai.messages || []).slice();
+    if (S.aiPending) msgs.push({ role: 'user', content: S.aiPending });
+    const bubbles = msgs.map((x) => '<div class="bub ' + (x.role === 'user' ? 'me' : 'ai') + '">' + (x.role === 'user' ? '<p>' + esc(x.content).replace(/\n/g, '<br>') + '</p>' : md(x.content)) + '</div>').join('') +
+      (S.aiBusy ? '<div class="bub ai typing" role="status"><span></span><span></span><span></span><em>Pensando nos seus números...</em></div>' : '');
+    const empty = '<div class="chat-empty"><span class="chat-ic">' + icon('chat', 24, 1.6) + '</span>' + '<b>Pergunte qualquer coisa sobre o seu dinheiro</b><span>Eu vejo seus saldos, cartões, contas fixas e os lançamentos dos últimos meses.</span>' +
+      '<div class="chips">' + AI_SUGESTOES.map((t) => '<button type="button" class="chip" data-act="ai-suggest" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div></div>';
+    return '<section class="panel chat">' +
+      '<div class="chat-head"><span class="sub">Respostas da OpenAI com base nos seus dados. Confira antes de decidir algo grande.</span><span class="chat-tools">' +
+      (msgs.length ? '<button type="button" class="link" data-act="ai-clear">Nova conversa</button>' : '') +
+      '<button type="button" class="link" data-act="ai-edit" data-v="1">Chave e modelo</button></span></div>' +
+      '<div class="chat-log" id="chat-log" aria-live="polite">' + (msgs.length ? bubbles : empty) + '</div>' +
+      msg('ai') +
+      '<form data-form="ai" class="chat-input"><textarea id="aiq" name="q" rows="1" placeholder="Pergunte sobre o seu dinheiro..." aria-label="Sua pergunta"' + (S.aiBusy ? ' disabled' : '') + '>' + esc(S.aiDraft || '') + '</textarea>' +
+      '<button class="btn primary" type="submit" aria-label="Enviar"' + (S.aiBusy ? ' disabled' : '') + '>' + icon('send', 16, 1.8) + '</button></form></section>';
+  }
+
+  async function sendAi(text) {
+    text = String(text || '').trim();
+    if (!text || S.aiBusy) return;
+    S.aiBusy = true; S.aiPending = text; S.aiDraft = ''; S.msg.ai = null;
+    render();
+    let res;
+    try { res = await api.aiSend(text); } catch (e) { res = { ok: false, message: 'Não consegui falar com o servidor. Tente de novo.' }; }
+    S.aiBusy = false; S.aiPending = null;
+    if (!res || !res.ok) { S.aiDraft = text; S.msg.ai = { ok: false, text: (res && res.message) || 'Não deu certo.' }; }
+    await load();
+  }
+
   // ---------- Boas-vindas ----------
   function screenWelcome() {
     return '<div class="welcome"><section class="panel"><div class="head"><div><h1>Seu dinheiro, atualizado sozinho</h1><span class="sub" style="font-size:15px;max-width:60ch">O Meu Cofrin busca suas compras, faturas e saldos pelo Open Finance, sem você digitar nada. ' + (S.m && S.m.sync && S.m.sync.web ? 'Tudo fica na sua conta, protegido por login.' : 'Tudo fica guardado só neste computador.') + '</span></div>' + ill.wallet + '</div>' +
@@ -637,11 +699,18 @@
     else if (S.screen === 'contas') content = topBar(m) + screenContas(m);
     else if (S.screen === 'fixas') content = topBar(m) + screenFixas(m);
     else if (S.screen === 'bancos') content = topBar(m) + screenBancos(m);
+    else if (S.screen === 'ia') content = topBar(m) + screenIA(m);
     else content = topBar(m) + screenVisao(m);
     root.innerHTML = '<div class="app">' + sidebar(m) + '<main class="main">' + content + '</main></div>' + dialog(m);
     if (focusId) {
       const el = document.getElementById(focusId);
       if (el) { el.focus(); if (caret !== null && el.setSelectionRange) el.setSelectionRange(caret, caret); }
+    }
+    if (S.screen === 'ia') {
+      const log = document.getElementById('chat-log');
+      if (log) log.scrollTop = log.scrollHeight;
+      const q = document.getElementById('aiq');
+      if (q && !S.aiBusy && !focusId && window.matchMedia('(min-width: 761px)').matches) q.focus();
     }
     if (S.dialog) {
       const first = root.querySelector('.dialog input:not([type=hidden]), .dialog button.rose');
@@ -767,6 +836,9 @@
       case 'edit-secrets': S.editSecrets = true; render(); break;
       case 'ext': api.openExternal(v); break;
       case 'logout': if (api.logout) api.logout(); break;
+      case 'ai-suggest': sendAi(v); break;
+      case 'ai-edit': S.editAi = v === '1'; S.msg.aikey = null; render(); break;
+      case 'ai-clear': await api.aiClear(); S.msg.ai = null; await load(); break;
       default: break;
     }
   });
@@ -808,6 +880,13 @@
       const res = await api.saveBill(data);
       if (res.ok) { S.dialog = null; toast('Conta salva.'); await load(); }
       else { S.msg.dlg = { ok: false, text: res.message }; render(); }
+    } else if (kind === 'ai') {
+      sendAi(data.q);
+    } else if (kind === 'aikey') {
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true; btn.textContent = 'Testando...';
+      const res = await run(api.aiKey({ key: data.key, model: data.model }), 'aikey', null);
+      if (res && res.ok) { S.editAi = false; S.msg.aikey = null; render(); }
     } else if (kind === 'manual') {
       const res = await api.saveManual(data);
       if (res.ok) { S.dialog = null; toast('Valor salvo.'); await load(); }
@@ -836,6 +915,7 @@
   root.addEventListener('input', (e) => {
     if (e.target.id === 'bb') { showSug(e.target); return; }
     if (e.target.id === 'busca') { S.q = e.target.value; render(); }
+    if (e.target.id === 'aiq') { S.aiDraft = e.target.value; e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'; }
   });
 
   function toggleFreq(v) {
@@ -869,6 +949,7 @@
   });
 
   document.addEventListener('keydown', (e) => {
+    if (e.target && e.target.id === 'aiq' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendAi(e.target.value); return; }
     if (e.key === 'Escape' && (S.dialog || S.menu)) { S.dialog = null; S.menu = false; render(); }
   });
 
