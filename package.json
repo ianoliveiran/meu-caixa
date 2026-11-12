@@ -1,0 +1,17 @@
+{
+  "name": "meu-caixa",
+  "productName": "Meu Caixa",
+  "version": "1.0.0",
+  "description": "Painel de finanças pessoais que sincroniza bancos e cartões pelo Open Finance (Meu Pluggy).",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/rules.test.js",
+    "pack:win": "electron-packager . \"Meu Caixa\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=assets/icon.ico --ignore=^/dist --ignore=^/test --ignore=^/tools --ignore=^/README.md --app-copyright=\"Uso pessoal\""
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "33.4.11"
+  }
+}
