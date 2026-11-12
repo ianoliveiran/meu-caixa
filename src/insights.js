@@ -63,7 +63,32 @@ function buildInsights(h) {
   if (f.metas) {
     out.metas = (h.settings.metas || []).map((g) => {
       const acc = g.contaId ? h.bankAccounts.find((a) => a.id === g.contaId) : null;
-      const atual = acc ? round2(Number(acc.balance) || 0) : round2(Number(g.guardado) || 0);
+      // Meta que anda com uma despesa fixa: o que já tinha pago antes + cada parcela que aparece no extrato.
+      const bill = g.billId ? (h.settings.bills || []).find((b) => b.id === g.billId) : null;
+      let pagos = null;
+      let parcela = null;
+      if (bill) {
+        parcela = Number(bill.valor) || 0;
+        const keys = String(bill.busca || bill.nome || '').split(',').map(h.norm).filter((k) => k.length >= 3);
+        const desde = /^\d{4}-\d{2}$/.test(g.desde || '') ? g.desde : '0000-00';
+        const meses = {};
+        let soma = 0;
+        let qtd = 0;
+        for (const t of all) {
+          if (!(t.value < 0) || !['expense', 'pix_credit'].includes(t.kind)) continue;
+          if (monthKey(t.date) < desde) continue;
+          if (!keys.some((k) => t.text.includes(k))) continue;
+          const a = Math.abs(t.value);
+          if (parcela > 0 && (a < parcela * 0.3 || a > parcela * 3)) continue;
+          soma += a; qtd++; meses[monthKey(t.date)] = true;
+        }
+        // Mês marcado como pago à mão, sem pagamento achado no extrato, conta a parcela.
+        for (const [mk, marks] of Object.entries(h.db.billMarks || {})) {
+          if (mk >= desde && marks && marks[bill.id] === true && !meses[mk]) { soma += parcela; qtd++; }
+        }
+        pagos = { soma: round2(soma), qtd };
+      }
+      const atual = acc ? round2(Number(acc.balance) || 0) : round2((Number(g.guardado) || 0) + (pagos ? pagos.soma : 0));
       const valor = Number(g.valor) || 0;
       const falta = round2(Math.max(0, valor - atual));
       let meses = null;
@@ -73,17 +98,20 @@ function buildInsights(h) {
       }
       const porMes = meses ? round2(falta / meses) : null;
       let chegaEm = null;
+      const passo = bill ? parcela : ritmo;
       if (falta <= 0) chegaEm = 'já chegou';
-      else if (ritmo && ritmo > 0) {
-        const n = Math.ceil(falta / ritmo);
+      else if (passo && passo > 0) {
+        const n = Math.ceil(falta / passo);
         const ml = monthLabel(addMonths(nowKey, n));
         chegaEm = ml.nome.toLowerCase() + ' de ' + ml.ano;
       }
       const prazoLabel = g.prazo ? (() => { const ml = monthLabel(g.prazo); return ml.nome.toLowerCase() + ' de ' + ml.ano; })() : null;
       return {
         id: g.id, nome: g.nome, valor, atual, falta, pct: valor > 0 ? Math.min(100, round2(atual / valor * 100)) : 0,
-        prazo: g.prazo || '', prazoLabel, meses, porMes, ritmo, chegaEm, noRitmo: porMes !== null && ritmo !== null ? ritmo >= porMes : null,
-        conta: acc ? h.bankNameOf(acc) : null, contaId: g.contaId || '', guardado: Number(g.guardado) || 0
+        prazo: g.prazo || '', prazoLabel, meses, porMes, ritmo: bill ? null : ritmo, chegaEm,
+        noRitmo: porMes !== null && passo !== null && passo !== undefined ? passo >= porMes - 0.01 : null,
+        conta: acc ? h.bankNameOf(acc) : null, contaId: g.contaId || '', guardado: Number(g.guardado) || 0,
+        bill: bill ? { nome: bill.nome, parcela, pagos: pagos.soma, qtd: pagos.qtd, extra: porMes !== null ? round2(Math.max(0, porMes - parcela)) : null } : null
       };
     });
   }

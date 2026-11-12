@@ -412,13 +412,16 @@
       return '<section class="panel compact-cta" style="flex:1 1 300px" aria-label="Metas"><div class="grow"><h2 class="h2">Metas</h2><span class="sub">Junte para algo com prazo, como o apartamento. O app diz quanto guardar por mês e se você está no ritmo.</span></div>' +
         (web ? '<button type="button" class="btn small primary" data-act="dlg-meta">' + icon('plus', 14, 2) + 'Criar meta</button>' : '') + '</section>';
     }
-    return '<section class="panel" style="flex:1 1 380px" aria-label="Metas"><div class="head"><div><h2 class="h2">Metas</h2><span class="sub">O ritmo é a média do que sobrou nos últimos meses fechados.</span></div>' + (web ? '<button type="button" class="btn small" data-act="dlg-meta">' + icon('plus', 14, 2) + 'Nova</button>' : '') + '</div>' +
+    return '<section class="panel" style="flex:1 1 380px" aria-label="Metas"><div class="head"><div><h2 class="h2">Metas</h2>' + (metas.some((g) => !g.bill && !g.conta || g.conta) && metas.some((g) => g.ritmo !== null) ? '<span class="sub">O ritmo é a média do que sobrou nos últimos meses fechados.</span>' : '') + '</div>' + (web ? '<button type="button" class="btn small" data-act="dlg-meta">' + icon('plus', 14, 2) + 'Nova</button>' : '') + '</div>' +
       metas.map((g) => '<div class="meta">' +
         '<div class="line"><span class="t">' + icon('target', 16, 1.8) + esc(g.nome) + '</span>' + (web ? '<button type="button" class="icon-btn ghost" data-act="dlg-meta" data-v="' + esc(g.id) + '" aria-label="Editar a meta ' + esc(g.nome) + '">' + icon('pencil', 15) + '</button>' : '') + '</div>' +
         '<div class="line"><b class="big-s">' + brl(g.atual) + '</b><span class="sub">de ' + brl(g.valor) + (g.conta ? ' · guardado no ' + esc(g.conta) : '') + '</span></div>' +
+        (g.bill ? '<span class="sub">' + (g.guardado ? brl(g.guardado) + ' pagos antes + ' : '') + g.bill.qtd + (g.bill.qtd === 1 ? ' parcela' : ' parcelas') + ' de ' + esc(g.bill.nome) + ' (' + brl(g.bill.pagos) + ')</span>' : '') +
         '<div class="track" role="img" aria-label="' + Math.round(g.pct) + '% da meta" style="height:10px"><div style="height:10px;width:' + g.pct + '%;background:var(--green)"></div></div>' +
         '<span class="sub">' + (g.falta <= 0 ? '<span class="good">' + icon('check', 13, 2) + 'Meta alcançada!</span>'
-          : (g.porMes !== null ? 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ': guarde <b>' + brl(g.porMes) + '</b> por mês.' : 'Faltam ' + brl(g.falta) + '.') +
+          : (g.porMes !== null ? (g.bill ? 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ' (' + brl(g.porMes) + ' por mês).' : 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ': guarde <b>' + brl(g.porMes) + '</b> por mês.') : 'Faltam ' + brl(g.falta) + '.') +
+            (g.bill && g.bill.extra !== null ? (g.bill.extra > 0 ? ' A parcela de ' + brl(g.bill.parcela) + ' cobre parte: <b>além dela, guarde ' + brl(g.bill.extra) + ' por mês</b>.' : ' Só com a parcela de ' + brl(g.bill.parcela) + ' você chega no prazo.') : '') +
+            (g.bill && g.bill.extra === null && g.chegaEm ? ' Só com a parcela de ' + brl(g.bill.parcela) + ', você chega em ' + esc(g.chegaEm) + '.' : '') +
             (g.ritmo !== null ? ' ' + (g.ritmo > 0 ? 'No ritmo atual (' + brl(g.ritmo) + ' por mês) você chega em ' + esc(g.chegaEm) + '.' : 'Nos últimos meses não sobrou dinheiro, então ainda não dá para prever.') : '') +
             (g.noRitmo === true ? ' <span class="pill green">no ritmo</span>' : g.noRitmo === false ? ' <span class="pill amber">abaixo do ritmo</span>' : '')) + '</span></div>').join('') + '</section>';
   }
@@ -476,6 +479,12 @@
       (a.length ? '<div class="list">' + a.map((x, i) => '<div class="li">' + mark(x.marca, x.cat, true) + '<div class="grow"><span class="t">' + esc(x.nome) + (x.subiu ? ' <span class="pill amber" style="font-size:10px">subiu de ' + brl(x.subiu.de) + '</span>' : '') + '</span><span class="m">' + esc(x.conta) + ' · ' + x.meses + ' meses seguidos · ' + brl(x.anual) + ' por ano</span></div><span class="v">' + brl(x.valor) + '</span>' +
         (x.jaFixa ? '<span class="pill green" style="font-size:10px">já é fixa</span>' : '<button type="button" class="icon-btn ghost" data-act="ass-fixa" data-v="' + i + '" title="Virar despesa fixa" aria-label="Virar despesa fixa: ' + esc(x.nome) + '">' + icon('contas', 16) + '</button>') + '</div>').join('') + '</div>' : '') +
       '</section>';
+  }
+
+  function metaFonteHelp(v) {
+    if (!v) return 'Você atualiza o valor guardado quando quiser.';
+    if (v.startsWith('bill:')) return 'Cada parcela paga que aparecer no extrato soma na meta sozinha. Some também o que você já tinha pago antes.';
+    return 'O valor guardado acompanha o saldo dessa conta sozinho.';
   }
 
   const FEATURES = [
@@ -848,13 +857,21 @@
     } else if (d.type === 'meta') {
       const g = d.id ? (m.settings.metas || []).find((x) => x.id === d.id) || {} : {};
       const contas = m.settings.reserveOptions || [];
+      const fixasMeta = (m.settings.bills || []).filter((b) => b.freq !== 'unica');
+      const fonteAtual = g.billId ? 'bill:' + g.billId : (g.contaId || '');
+      const hoje = new Date();
+      const mesAtual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
       body = '<h2 class="h2" id="dlg-t">' + (d.id ? 'Editar meta' : 'Nova meta') + '</h2>' +
         '<form data-form="meta" class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><input type="hidden" name="id" value="' + esc(g.id || '') + '">' +
         '<div class="field"><label for="gn">Nome</label><input id="gn" name="nome" required value="' + esc(g.nome || '') + '" placeholder="Apartamento"></div>' +
         '<div class="field"><label for="gv">Valor da meta</label><input id="gv" name="valor" inputmode="decimal" required value="' + (g.valor ? moneyRaw(g.valor) : '') + '" placeholder="60.000,00"></div>' +
         '<div class="field"><label for="gp">Até quando (opcional)</label><input id="gp" name="prazo" type="month" value="' + esc(g.prazo || '') + '"><small>Com prazo, o app diz quanto guardar por mês.</small></div>' +
-        '<div class="field"><label for="gc">Onde está o dinheiro</label><select id="gc" name="contaId"><option value="">Vou dizer quanto já tenho</option>' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaId ? ' selected' : '') + '>Saldo da conta ' + esc(c.nome) + '</option>').join('') + '</select><small>Escolhendo uma conta, o valor guardado se atualiza sozinho com o saldo dela.</small></div>' +
-        '<div class="field" id="wrap-guardado"' + (g.contaId ? ' hidden' : '') + '><label for="gg">Quanto já tem guardado</label><input id="gg" name="guardado" inputmode="decimal" value="' + (g.guardado ? moneyRaw(g.guardado) : '') + '" placeholder="0,00"></div>' +
+        '<div class="field" style="grid-column:1/-1"><label for="gc">Como a meta anda</label><select id="gc" name="fonte"><option value="">Eu digo quanto já tenho</option>' +
+          (contas.length ? '<optgroup label="Saldo de uma conta">' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaId ? ' selected' : '') + '>Saldo da conta ' + esc(c.nome) + '</option>').join('') + '</optgroup>' : '') +
+          (fixasMeta.length ? '<optgroup label="Somando as parcelas de uma despesa fixa">' + fixasMeta.map((b) => '<option value="bill:' + esc(b.id) + '"' + (b.id === g.billId ? ' selected' : '') + '>Parcelas de ' + esc(b.nome) + ' (' + brl(b.valor) + ')</option>').join('') + '</optgroup>' : '') +
+          '</select><small id="gc-help">' + metaFonteHelp(fonteAtual) + '</small></div>' +
+        '<div class="field" id="wrap-guardado"' + (g.contaId ? ' hidden' : '') + '><label for="gg" id="gg-label">' + (g.billId ? 'Quanto já tinha pago antes' : 'Quanto já tem guardado') + '</label><input id="gg" name="guardado" inputmode="decimal" value="' + (g.guardado ? moneyRaw(g.guardado) : '') + '" placeholder="0,00"></div>' +
+        '<div class="field" id="wrap-desde"' + (g.billId ? '' : ' hidden') + '><label for="gd">Contar parcelas a partir de</label><input id="gd" name="desde" type="month" value="' + esc(g.desde || mesAtual) + '"><small>As parcelas desse mês em diante que aparecerem no extrato somam na meta.</small></div>' +
         '<div class="actions" style="grid-column:1/-1">' + (d.id ? '<button type="button" class="btn danger" data-act="meta-remove" data-v="' + esc(g.id) + '">Apagar</button>' : '') + '<button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
     } else if (d.type === 'limites') {
       const cur = m.settings.limites || {};
@@ -1204,7 +1221,15 @@
       return;
     }
     if (e.target.id === 'bf') { toggleFreq(e.target.value); return; }
-    if (e.target.id === 'gc') { const w = document.getElementById('wrap-guardado'); if (w) w.hidden = !!e.target.value; return; }
+    if (e.target.id === 'gc') {
+      const v = e.target.value;
+      const isBill = v.startsWith('bill:');
+      const w = document.getElementById('wrap-guardado'); if (w) w.hidden = !!v && !isBill;
+      const wd = document.getElementById('wrap-desde'); if (wd) wd.hidden = !isBill;
+      const l = document.getElementById('gg-label'); if (l) l.textContent = isBill ? 'Quanto já tinha pago antes' : 'Quanto já tem guardado';
+      const hp = document.getElementById('gc-help'); if (hp) hp.textContent = metaFonteHelp(v);
+      return;
+    }
     if (e.target.dataset && e.target.dataset.feature) {
       const patch = {}; patch[e.target.dataset.feature] = e.target.checked;
       await api.saveFeatures(patch); await load(); return;

@@ -139,10 +139,15 @@ const actions = {
     if (!nome) return { result: { ok: false, message: 'Dê um nome para a meta, como Apartamento.' } };
     if (!(valor > 0)) return { result: { ok: false, message: 'Coloque o valor da meta, como 60.000,00.' } };
     const prazo = /^\d{4}-\d{2}$/.test(g.prazo || '') ? g.prazo : '';
-    const guardado = g.contaId ? 0 : (parseMoney(g.guardado) || 0);
+    const fonte = String(g.fonte || g.contaId || '');
+    const contaId = fonte.startsWith('bill:') ? '' : fonte;
+    const billId = fonte.startsWith('bill:') ? fonte.slice(5) : '';
+    if (billId && !(db.settings.bills || []).some((b) => b.id === billId)) return { result: { ok: false, message: 'Não achei essa despesa fixa.' } };
+    const guardado = contaId ? 0 : (parseMoney(g.guardado) || 0);
+    const desde = billId && /^\d{4}-\d{2}$/.test(g.desde || '') ? g.desde : '';
     const list = db.settings.metas || [];
     const id = g.id && list.some((x) => x.id === g.id) ? g.id : 'meta-' + Date.now().toString(36);
-    const item = { id, nome, valor, prazo, contaId: String(g.contaId || ''), guardado };
+    const item = { id, nome, valor, prazo, contaId, billId, desde, guardado };
     db.settings.metas = list.some((x) => x.id === id) ? list.map((x) => (x.id === id ? item : x)) : list.concat([item]);
     return { result: { ok: true }, changed: true };
   },

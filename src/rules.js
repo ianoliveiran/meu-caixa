@@ -549,7 +549,7 @@ function buildModel(db, opts) {
       avisos.push({ id: 'bill:' + b.id + ':' + mk, tipo: 'conta', titulo: b.nome, texto: dias < 0 ? 'Venceu há ' + (-dias) + (dias === -1 ? ' dia' : ' dias') + ' e ainda não apareceu paga' : dias === 0 ? 'Vence hoje' : dias === 1 ? 'Vence amanhã' : 'Vence em ' + dias + ' dias', valor: -b.valor, cat: b.icon || b.cat, marca: b.marca, quando: Math.min(+now, desde), atrasada: dias < 0, novo: desde > seenAt });
     }
   }
-  const insights = buildInsights({ all, now, mk, settings, db, label, monthKey, addMonths, monthLabel, round2, CATS, suggestTerm, bankAccounts, bankNameOf, catTotals, avisos, seenAt });
+  const insights = buildInsights({ all, now, mk, settings, db, label, norm, monthKey, addMonths, monthLabel, round2, CATS, suggestTerm, bankAccounts, bankNameOf, catTotals, avisos, seenAt });
   avisos.sort((a, b) => (b.novo - a.novo) || (b.tipo === 'conta') - (a.tipo === 'conta') || b.quando - a.quando);
   avisos.splice(30);
   const novas = avisos.filter((x) => x.novo).length;
