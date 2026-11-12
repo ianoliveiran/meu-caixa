@@ -2,12 +2,18 @@
 // Liga a interface ao servidor: login no Supabase e chamadas para /api/rpc.
 (function () {
   const C = window.MEUCAIXA_CONFIG || {};
+  // Tema antes do login, para a tela de entrada não piscar clara à noite.
+  try {
+    const t = localStorage.getItem('meucaixa-tema') || 'auto';
+    if (t === 'escuro' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+  } catch (e) { /* sem armazenamento */ }
   const KEY = 'meucaixa-sessao';
   const root = document.getElementById('root');
   let session = null;
   let listeners = [];
   let syncing = false;
   let staleTried = false;
+  let weeklyTried = false;
   // Painéis já carregados, por mês: a tela aparece na hora e atualiza por trás.
   const cache = {};
   let curKey = null;
@@ -95,6 +101,7 @@
       if (m && m.sync) {
         m.sync.syncing = syncing;
         if (m.sync.stale && !staleTried && !syncing) { staleTried = true; setTimeout(backgroundSync, 50); }
+        if (m.sync.weeklyDue && !weeklyTried) { weeklyTried = true; setTimeout(() => { rpc('ai:weekly').then((r) => { if (r && r.ok) notify({ syncing }); }).catch(() => {}); }, 4000); }
       }
       return m;
     },
@@ -120,6 +127,11 @@
     aiKey: call('ai:key'),
     aiClear: call('ai:clear'),
     notifSeen: call('notif:seen'),
+    saveFeatures: call('features:save'),
+    saveMeta: call('meta:save'),
+    removeMeta: call('meta:remove'),
+    saveLimites: call('limites:save'),
+    aiWeekly: call('ai:weekly'),
     openExternal: async (url) => { if (/^https:\/\//.test(url)) window.open(url, '_blank', 'noopener'); return { ok: true }; },
     onChange: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((x) => x !== fn); }; },
     email: () => (session && session.email) || '',

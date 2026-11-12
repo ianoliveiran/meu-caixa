@@ -1,4 +1,5 @@
 'use strict';
+const { buildInsights, features } = require('./insights');
 // Regras que transformam os dados brutos da Pluggy no que o painel mostra.
 // Tudo aqui é função pura: recebe o banco local e devolve números prontos.
 
@@ -548,6 +549,7 @@ function buildModel(db, opts) {
       avisos.push({ id: 'bill:' + b.id + ':' + mk, tipo: 'conta', titulo: b.nome, texto: dias < 0 ? 'Venceu há ' + (-dias) + (dias === -1 ? ' dia' : ' dias') + ' e ainda não apareceu paga' : dias === 0 ? 'Vence hoje' : dias === 1 ? 'Vence amanhã' : 'Vence em ' + dias + ' dias', valor: -b.valor, cat: b.icon || b.cat, marca: b.marca, quando: Math.min(+now, desde), atrasada: dias < 0, novo: desde > seenAt });
     }
   }
+  const insights = buildInsights({ all, now, mk, settings, db, label, monthKey, addMonths, monthLabel, round2, CATS, suggestTerm, bankAccounts, bankNameOf, catTotals, avisos, seenAt });
   avisos.sort((a, b) => (b.novo - a.novo) || (b.tipo === 'conta') - (a.tipo === 'conta') || b.quando - a.quando);
   avisos.splice(30);
   const novas = avisos.filter((x) => x.novo).length;
@@ -604,6 +606,14 @@ function buildModel(db, opts) {
     },
     categorias, totalGasto, pixCredito,
     compras, lancamentos, novas, avisos,
+    features: insights.features,
+    historico: insights.historico || null,
+    metas: insights.metas || null,
+    limites: insights.limites || null,
+    parcelas: insights.parcelas || null,
+    assinaturas: insights.assinaturas || null,
+    assinaturasTotal: insights.assinaturasTotal || 0,
+    pixAno: insights.pixAno || null,
     bancos,
     manual: (db.manual || []).filter((x) => x.tipo !== 'credito').map((x) => Object.assign({}, x)),
     manualCredits: (db.manual || []).filter((x) => x.tipo === 'credito').map((x) => {
@@ -653,6 +663,9 @@ function publicSettings(s, reserveOptions, now) {
       mesNome,
       porMes: round2((Number(b.valor) || 0) * (b.freq === 'semanal' || b.freq === 'unica' ? expandBill(b, mkNow, { mkNow }).length : 1))
     })),
+    features: features(s),
+    metas: (s.metas || []).map((g) => Object.assign({}, g)),
+    limites: Object.assign({}, s.limites || {}),
     cpf: s.cpf ? '•••.' + digits(s.cpf).slice(3, 6) + '.•••-••' : '',
     demo: !!s.demo
   };

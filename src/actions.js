@@ -78,6 +78,7 @@ const actions = {
     m.sync.hasData = Object.keys(db.accounts || {}).length > 0;
     m.sync.autoStartAvailable = false;
     m.sync.web = true;
+    m.sync.weeklyDue = !!(m.features && m.features.semanal && db.secrets && db.secrets.openai && !db.settings.demo && (!db.weekly || new Date(db.weekly.at) < assistant.mondayStart(new Date())));
     m.sync.stale = configured && !db.settings.demo && m.sync.hasItems && (!db.lastSync || (Date.now() - new Date(db.lastSync)) > STALE_MS);
     m.ai = {
       configured: !!(db.secrets && db.secrets.openai),
@@ -124,9 +125,55 @@ const actions = {
     return { result: res, changed: !!res.ok };
   },
 
+  'features:save': async (db, patch = {}) => {
+    const { FEATURE_DEFAULTS } = require('./insights');
+    const cur = Object.assign({}, db.settings.features || {});
+    for (const k of Object.keys(patch)) if (k in FEATURE_DEFAULTS) cur[k] = !!patch[k];
+    db.settings.features = cur;
+    return { result: { ok: true }, changed: true };
+  },
+
+  'meta:save': async (db, g = {}) => {
+    const nome = String(g.nome || '').trim().slice(0, 60);
+    const valor = parseMoney(g.valor);
+    if (!nome) return { result: { ok: false, message: 'Dê um nome para a meta, como Apartamento.' } };
+    if (!(valor > 0)) return { result: { ok: false, message: 'Coloque o valor da meta, como 60.000,00.' } };
+    const prazo = /^\d{4}-\d{2}$/.test(g.prazo || '') ? g.prazo : '';
+    const guardado = g.contaId ? 0 : (parseMoney(g.guardado) || 0);
+    const list = db.settings.metas || [];
+    const id = g.id && list.some((x) => x.id === g.id) ? g.id : 'meta-' + Date.now().toString(36);
+    const item = { id, nome, valor, prazo, contaId: String(g.contaId || ''), guardado };
+    db.settings.metas = list.some((x) => x.id === id) ? list.map((x) => (x.id === id ? item : x)) : list.concat([item]);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'meta:remove': async (db, id) => {
+    db.settings.metas = (db.settings.metas || []).filter((x) => x.id !== id);
+    return { result: { ok: true }, changed: true };
+  },
+
+  'limites:save': async (db, lim = {}) => {
+    const out = {};
+    for (const [c, v] of Object.entries(lim)) {
+      if (!CATS[c]) continue;
+      const n = parseMoney(v);
+      if (n > 0) out[c] = n;
+    }
+    db.settings.limites = out;
+    return { result: { ok: true }, changed: true };
+  },
+
   'notif:seen': async (db) => {
     db.settings.notifSeen = Date.now();
     return { result: { ok: true }, changed: true };
+  },
+
+  'ai:weekly': async (db, arg, env) => {
+    const f = Object.assign({}, require('./insights').FEATURE_DEFAULTS, db.settings.features || {});
+    const due = f.semanal && db.secrets && db.secrets.openai && !db.settings.demo && (!db.weekly || new Date(db.weekly.at) < assistant.mondayStart(new Date()));
+    if (!due) return { result: { ok: false, message: 'Ainda não é hora.' } };
+    const r = await assistant.weekly(db, env);
+    return { result: r, changed: r.ok };
   },
 
   'ai:clear': async (db) => {

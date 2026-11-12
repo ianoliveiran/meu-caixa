@@ -34,6 +34,18 @@
   function saveLanc() {
     try { localStorage.setItem('meucaixa-lanc', JSON.stringify({ filtro: S.filtro, ordem: S.ordem, cat: S.cat })); } catch (e) { /* sem armazenamento */ }
   }
+  // Aparência: automático (segue o celular/computador), claro ou escuro.
+  function applyTheme() {
+    let t = 'auto';
+    try { t = localStorage.getItem('meucaixa-tema') || 'auto'; } catch (e) { /* sem armazenamento */ }
+    const dark = t === 'escuro' || (t === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+    const meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', dark ? '#0b1020' : '#f3f5f9');
+    return t;
+  }
+  S.tema = applyTheme();
+  if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); }); } catch (e) { /* navegador antigo */ } }
   const SCREENS = ['visao', 'ia', 'lanc', 'cartoes', 'contas', 'fixas', 'bancos'];
   function screenFromHash() {
     const h = location.hash.replace('#', '');
@@ -138,9 +150,12 @@
   function notifPanel(m) {
     const list = S.notif.list || [];
     const item = (a) => '<button type="button" class="notif-item' + (a.novo ? ' novo' : '') + '" data-act="notif-open" data-v="' + esc(a.id) + '">' +
-      (a.tipo === 'conta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? '#fff1f2' : '#fef3c7') + ';color:' + (a.atrasada ? '#be123c' : '#b45309') + '">' + icon(a.atrasada ? 'alert' : 'calendar', 15, 1.8) + '</span>' : mark(a.marca, a.cat, true)) +
+      (a.tipo === 'conta' || a.tipo === 'limite' || a.tipo === 'alerta' ? '<span class="tile s" aria-hidden="true" style="background:' + (a.atrasada ? '#fff1f2' : '#fef3c7') + ';color:' + (a.atrasada ? '#be123c' : '#b45309') + '">' + icon(a.tipo === 'conta' && !a.atrasada ? 'calendar' : 'alert', 15, 1.8) + '</span>'
+        : a.tipo === 'resumo' ? '<span class="tile s" aria-hidden="true" style="background:#dcfce7;color:#15803d">' + icon('trend', 15, 1.8) + '</span>'
+        : a.tipo === 'semanal' ? '<span class="tile s" aria-hidden="true" style="background:var(--blue-soft);color:var(--blue-d)">' + icon('chat', 15, 1.8) + '</span>'
+        : mark(a.marca, a.cat, true)) +
       '<span class="grow"><b>' + esc(a.titulo) + '</b><small>' + esc(a.texto) + (a.tipo === 'tx' ? ' · chegou ' + esc(when(new Date(a.quando).toISOString())) : '') + '</small></span>' +
-      '<span class="val' + (a.valor > 0 ? ' pos' : '') + '">' + signedBrl(a.valor) + '</span></button>';
+      (a.valor === null || a.valor === undefined ? '' : '<span class="val' + (a.valor > 0 ? ' pos' : '') + '">' + (a.tipo === 'resumo' ? (a.valor >= 0 ? 'sobrou ' : 'faltou ') + brl(Math.abs(a.valor)) : signedBrl(a.valor)) + '</span>') + '</button>';
     const novos = list.filter((a) => a.novo);
     const vistos = list.filter((a) => !a.novo);
     return '<div class="menu notif" role="dialog" aria-label="Notificações"><div class="notif-head"><b>Notificações</b>' + (novos.length ? '<span class="pill">' + novos.length + (novos.length === 1 ? ' nova' : ' novas') + '</span>' : '') + '</div>' +
@@ -252,10 +267,10 @@
       return '<div class="mbox' + (on ? ' on' : '') + '"><b style="font-size:13px">' + esc(p.mes) + '</b>' +
         '<span class="pill ' + (on ? 'blue' : (p.estado === 'Paga' ? 'green' : 'gray')) + '" style="font-size:10px;padding:2px 8px">' + esc(p.estado) + '</span>' +
         '<div class="chart"><svg aria-hidden="true" viewBox="0 0 100 64" preserveAspectRatio="none">' +
-        (on ? '<polygon points="' + pts + ' 100,64 0,64" fill="#dbeafe"/>' : '') +
+        (on ? '<polygon points="' + pts + ' 100,64 0,64" fill="var(--blue-soft)"/>' : '') +
         '<polyline points="' + pts + '" fill="none" stroke="' + stroke + '" stroke-width="2"' + (on ? '' : ' stroke-dasharray="4 4"') + ' vector-effect="non-scaling-stroke"/></svg>' +
         '<span class="pt" style="top:' + ys[k].toFixed(1) + 'px;border-color:' + stroke + '"></span></div>' +
-        '<b style="font-size:13px;color:' + (on ? '#1d4ed8' : '#475569') + '">' + brl(p.valor) + '</b></div>';
+        '<b style="font-size:13px;color:' + (on ? 'var(--blue-d)' : 'var(--ink-2)') + '">' + brl(p.valor) + '</b></div>';
     }).join('') + '</div>';
   }
 
@@ -315,7 +330,7 @@
     return '<section class="panel" style="flex:1 1 320px" aria-label="Contas a pagar">' +
       '<div class="head"><div><h2 class="h2">Contas a pagar' + (next ? ' <small>· próxima dia ' + String(next.dia).padStart(2, '0') + '</small>' : '') + '</h2>' +
       '<div class="big"><span class="rs">R$ </span>' + parts[0] + '<span class="ct">,' + parts[1] + '</span></div>' +
-      '<span class="sub">em aberto · <b style="color:#0f172a">' + t.pagas + ' de ' + t.total + ' pagas</b></span></div>' + ill.calendar + '</div>' +
+      '<span class="sub">em aberto · <b style="color:var(--ink)">' + t.pagas + ' de ' + t.total + ' pagas</b></span></div>' + ill.calendar + '</div>' +
       (m.bills.length ? dayPills(m) : '<div class="empty-state">Cadastre aluguel, luz, internet e o que mais você paga todo mês. O app procura o pagamento sozinho no extrato.<button type="button" class="btn small" data-act="dlg-bill">Adicionar conta fixa</button></div>') +
       '<div class="list">' + open.map(billRow).join('') + (showPaid ? paid.map(billRow).join('') : '') +
       (m.bills.length && !open.length && !showPaid ? '<div class="empty-state" style="padding:16px">Tudo pago' + (S.day ? ' nesse dia' : ' este mês') + '.</div>' : '') + '</div>' +
@@ -384,9 +399,101 @@
     const pixPanel = p.qtd
       ? '<section class="panel" aria-label="Pix no crédito"><div class="head"><div><h2 class="h2">Pix no crédito</h2><span class="sub">' + p.qtd + (p.qtd === 1 ? ' Pix' : ' Pix') + ' no crédito este mês</span>' + bigNum(p.total) + '</div>' + ill.lightning + '</div>' +
         '<div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros do mês</span><b>' + brl(p.taxas) + '</b></div></div></div>' +
+        (m.pixAno && m.pixAno.qtd ? '<div class="tiles"><div>' + tile('pix') + '<div><span>Pix no crédito no ano</span><b>' + brl(m.pixAno.total) + '</b></div></div><div>' + tile('taxas') + '<div><span>Taxas no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div>' : '') +
         '<span class="sub">As taxas são as linhas de juros, IOF e tarifa que aparecem nas faturas dos cartões.</span></section>'
-      : '';
+      : (m.pixAno && m.pixAno.qtd ? '<section class="panel" aria-label="Pix no crédito no ano"><div class="head"><div><h2 class="h2">Pix no crédito em ' + m.pixAno.ano + '</h2><span class="sub">' + m.pixAno.qtd + ' Pix no crédito no ano</span>' + bigNum(m.pixAno.total) + '</div>' + ill.lightning + '</div><div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros no ano</span><b style="color:#be123c">' + brl(m.pixAno.taxas) + '</b></div></div></div></section>' : '');
     return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + pixPanel + manualPanel + '</div>';
+  }
+
+  function metasPanel(m) {
+    const metas = m.metas || [];
+    const web = m.sync.web;
+    if (!metas.length) {
+      return '<section class="panel compact-cta" style="flex:1 1 300px" aria-label="Metas"><div class="grow"><h2 class="h2">Metas</h2><span class="sub">Junte para algo com prazo, como o apartamento. O app diz quanto guardar por mês e se você está no ritmo.</span></div>' +
+        (web ? '<button type="button" class="btn small primary" data-act="dlg-meta">' + icon('plus', 14, 2) + 'Criar meta</button>' : '') + '</section>';
+    }
+    return '<section class="panel" style="flex:1 1 380px" aria-label="Metas"><div class="head"><div><h2 class="h2">Metas</h2><span class="sub">O ritmo é a média do que sobrou nos últimos meses fechados.</span></div>' + (web ? '<button type="button" class="btn small" data-act="dlg-meta">' + icon('plus', 14, 2) + 'Nova</button>' : '') + '</div>' +
+      metas.map((g) => '<div class="meta">' +
+        '<div class="line"><span class="t">' + icon('target', 16, 1.8) + esc(g.nome) + '</span>' + (web ? '<button type="button" class="icon-btn ghost" data-act="dlg-meta" data-v="' + esc(g.id) + '" aria-label="Editar a meta ' + esc(g.nome) + '">' + icon('pencil', 15) + '</button>' : '') + '</div>' +
+        '<div class="line"><b class="big-s">' + brl(g.atual) + '</b><span class="sub">de ' + brl(g.valor) + (g.conta ? ' · guardado no ' + esc(g.conta) : '') + '</span></div>' +
+        '<div class="track" role="img" aria-label="' + Math.round(g.pct) + '% da meta" style="height:10px"><div style="height:10px;width:' + g.pct + '%;background:var(--green)"></div></div>' +
+        '<span class="sub">' + (g.falta <= 0 ? '<span class="good">' + icon('check', 13, 2) + 'Meta alcançada!</span>'
+          : (g.porMes !== null ? 'Faltam ' + brl(g.falta) + ' até ' + esc(g.prazoLabel) + ': guarde <b>' + brl(g.porMes) + '</b> por mês.' : 'Faltam ' + brl(g.falta) + '.') +
+            (g.ritmo !== null ? ' ' + (g.ritmo > 0 ? 'No ritmo atual (' + brl(g.ritmo) + ' por mês) você chega em ' + esc(g.chegaEm) + '.' : 'Nos últimos meses não sobrou dinheiro, então ainda não dá para prever.') : '') +
+            (g.noRitmo === true ? ' <span class="pill green">no ritmo</span>' : g.noRitmo === false ? ' <span class="pill amber">abaixo do ritmo</span>' : '')) + '</span></div>').join('') + '</section>';
+  }
+
+  function limitesPanel(m) {
+    const lim = m.limites || [];
+    const web = m.sync.web;
+    if (!lim.length) {
+      return '<section class="panel compact-cta" style="flex:1 1 300px" aria-label="Limites por categoria"><div class="grow"><h2 class="h2">Limites do mês</h2><span class="sub">Um teto para categorias como restaurantes ou compras. O sininho avisa quando chegar em 80% e quando passar.</span></div>' +
+        (web ? '<button type="button" class="btn small primary" data-act="dlg-limites">' + icon('plus', 14, 2) + 'Definir limites</button>' : '') + '</section>';
+    }
+    return '<section class="panel" style="flex:1 1 380px" aria-label="Limites do mês"><div class="head"><div><h2 class="h2">Limites do mês</h2><span class="sub">' + esc(m.month.nome.toLowerCase()) + ' · gasto até agora em cada categoria</span></div>' + (web ? '<button type="button" class="btn small" data-act="dlg-limites">' + icon('pencil', 14) + 'Ajustar</button>' : '') + '</div>' +
+      '<div class="cats one">' + lim.map((l) => {
+        const cor = l.pct >= 100 ? '#e11d48' : l.pct >= 80 ? '#f59e0b' : catStyle(l.cat).bar;
+        return '<button type="button" class="cat cat-btn" data-act="cat-open" data-v="' + esc(l.cat) + '">' + tile(l.cat) + '<div class="grow"><div class="line"><span style="font-weight:600">' + esc(l.label) + '</span><b style="white-space:nowrap">' + brl(l.gasto) + ' <span class="sub">de ' + brl(l.valor) + '</span></b></div>' +
+          '<div class="track"><div style="width:' + Math.min(100, l.pct).toFixed(1) + '%;background:' + cor + '"></div></div>' +
+          '<span class="sub" style="color:' + (l.pct >= 100 ? '#be123c' : l.pct >= 80 ? '#b45309' : 'var(--muted)') + '">' + (l.resta >= 0 ? 'restam ' + brl(l.resta) : 'passou ' + brl(-l.resta)) + '</span></div></button>';
+      }).join('') + '</div></section>';
+  }
+
+  function graficoPanel(m) {
+    const h = m.historico;
+    const mx = Math.max.apply(null, h.map((x) => Math.max(x.entrou, x.saiu)).concat([1]));
+    const W = 640;
+    const H = 180;
+    const col = W / h.length;
+    const bw = Math.min(26, col / 3.2);
+    const y = (v) => H - (v / mx) * (H - 10);
+    const bars = h.map((x, i) => {
+      const cx = col * i + col / 2;
+      return '<rect x="' + (cx - bw - 2).toFixed(1) + '" y="' + y(x.entrou).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.entrou)).toFixed(1) + '" rx="4" fill="var(--green)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Entrou ' + brl(x.entrou) + '</title></rect>' +
+        '<rect x="' + (cx + 2).toFixed(1) + '" y="' + y(x.saiu).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (H - y(x.saiu)).toFixed(1) + '" rx="4" fill="var(--rose)"' + (x.atual ? ' opacity="0.55"' : '') + '><title>Saiu ' + brl(x.saiu) + '</title></rect>';
+    }).join('');
+    return '<section class="panel" aria-label="Últimos meses"><div class="head"><div><h2 class="h2">Últimos meses</h2><span class="sub">Quanto entrou e quanto saiu em cada mês. O mês atual está mais claro porque ainda não fechou.</span></div>' +
+      '<div class="legend-mini"><span><i style="background:var(--green)"></i>Entrou</span><span><i style="background:var(--rose)"></i>Saiu</span></div></div>' +
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 2) + '" role="img" aria-label="Entradas e saídas dos últimos meses" preserveAspectRatio="none"><line x1="0" x2="' + W + '" y1="' + H + '" y2="' + H + '" stroke="var(--line)"/>' + bars + '</svg>' +
+      '<div class="chart-x" style="grid-template-columns:repeat(' + h.length + ',1fr)">' + h.map((x) => '<div><b>' + esc(x.mes) + '</b><span class="' + (x.sobra >= 0 ? 'pos' : 'neg') + '">' + (x.sobra >= 0 ? 'sobrou ' : 'faltou ') + brl(Math.abs(x.sobra)) + '</span></div>').join('') + '</div></section>';
+  }
+
+  function parcelasPanel(m) {
+    const p = m.parcelas || [];
+    if (!p.length) return '<section class="panel"><h2 class="h2">Parcelas nos próximos meses</h2><div class="empty-state" style="padding:12px">Nenhuma compra parcelada em andamento.</div></section>';
+    const mx = Math.max.apply(null, p.map((x) => x.total).concat([1]));
+    return '<section class="panel" aria-label="Parcelas nos próximos meses"><div class="head"><div><h2 class="h2">Parcelas nos próximos meses</h2><span class="sub">Quanto das próximas faturas já está comprometido com compras parceladas. Clique num mês para ver as compras.</span></div></div>' +
+      '<div class="parc">' + p.map((x) => '<button type="button" class="parc-m' + (S.parcMes === x.key ? ' on' : '') + '" data-act="parc-mes" data-v="' + x.key + '"><span class="parc-bar"><span style="height:' + Math.max(4, x.total / mx * 100).toFixed(1) + '%"></span></span><b>' + esc(x.mes) + '</b><small>' + brl(x.total) + '</small></button>').join('') + '</div>' +
+      (S.parcMes && p.find((x) => x.key === S.parcMes) ? (() => {
+        const x = p.find((y) => y.key === S.parcMes);
+        return '<div class="list">' + x.itens.map((i) => '<div class="li">' + tile('compras', true) + '<div class="grow"><span class="t">' + esc(i.nome) + '</span><span class="m">parcela ' + esc(i.parcela) + ' · ' + esc(i.cartao) + '</span></div><span class="v">' + brl(i.valor) + '</span></div>').join('') + '</div>';
+      })() : '') + '</section>';
+  }
+
+  function assinaturasPanel(m) {
+    const a = m.assinaturas || [];
+    return '<section class="panel" aria-label="Cobranças que se repetem"><div class="head"><div><h2 class="h2">Cobranças que se repetem</h2><span class="sub">' + (a.length ? 'Encontrei ' + a.length + (a.length === 1 ? ' cobrança' : ' cobranças') + ' que aparecem todo mês, somando ' + brl(m.assinaturasTotal) + ' por mês (' + brl(m.assinaturasTotal * 12) + ' por ano).' : 'Nenhuma cobrança mensal repetida nos últimos 4 meses.') + '</span></div></div>' +
+      (a.length ? '<div class="list">' + a.map((x, i) => '<div class="li">' + mark(x.marca, x.cat, true) + '<div class="grow"><span class="t">' + esc(x.nome) + (x.subiu ? ' <span class="pill amber" style="font-size:10px">subiu de ' + brl(x.subiu.de) + '</span>' : '') + '</span><span class="m">' + esc(x.conta) + ' · ' + x.meses + ' meses seguidos · ' + brl(x.anual) + ' por ano</span></div><span class="v">' + brl(x.valor) + '</span>' +
+        (x.jaFixa ? '<span class="pill green" style="font-size:10px">já é fixa</span>' : '<button type="button" class="icon-btn ghost" data-act="ass-fixa" data-v="' + i + '" title="Virar despesa fixa" aria-label="Virar despesa fixa: ' + esc(x.nome) + '">' + icon('contas', 16) + '</button>') + '</div>').join('') + '</div>' : '') +
+      '</section>';
+  }
+
+  const FEATURES = [
+    ['metas', 'Metas', 'Juntar para algo com prazo, como o apartamento, e quanto guardar por mês.'],
+    ['limites', 'Limites por categoria', 'Um teto por mês para categorias como restaurantes. O sininho avisa em 80% e quando passar.'],
+    ['parcelas', 'Parcelas futuras', 'Em Cartões, quanto das próximas faturas já está comprometido.'],
+    ['assinaturas', 'Cobranças que se repetem', 'Em Despesas fixas, as assinaturas que o app encontrou, e aviso quando ficarem mais caras.'],
+    ['alertas', 'Gastos fora do normal', 'Aviso quando uma compra vem bem acima do costume ou parece duplicada.'],
+    ['pixAno', 'Pix no crédito no ano', 'Quanto você já pagou de juros e IOF no ano.'],
+    ['resumo', 'Resumo do mês', 'No começo de cada mês, um resumo do mês que fechou no sininho.'],
+    ['grafico', 'Gráfico dos últimos meses', 'Entradas e saídas mês a mês na Visão geral.'],
+    ['semanal', 'Conversa da semana', 'Toda segunda, o assistente escreve um resumo da sua semana na aba Conversar. Usa crédito da OpenAI.']
+  ];
+
+  function featuresPanel(m) {
+    const f = m.features || {};
+    return '<section class="panel" aria-label="O que aparece no app"><div><h2 class="h2">O que aparece no app</h2><span class="sub">Desligue o que você não quer ver. Dá para ligar de novo quando quiser, e nada do que você cadastrou se perde.</span></div>' +
+      '<div class="feat-list">' + FEATURES.filter(([k]) => k !== 'semanal' || (m.ai && m.ai.configured)).map(([k, t, d]) => '<label class="feat"><span class="grow"><b>' + esc(t) + '</b><small>' + esc(d) + '</small></span><span class="toggle"><input type="checkbox" data-feature="' + k + '"' + (f[k] ? ' checked' : '') + '><span aria-hidden="true"></span></span></label>').join('') + '</div></section>';
   }
 
   function planoPanel(m) {
@@ -434,7 +541,9 @@
   function screenVisao(m) {
     return '<div class="row">' + planoPanel(m) + saldosPanel(m) + '</div>' +
       '<div class="row top">' + cartoesPanel(m) + contasPanel(m) + comprasPanel(m) + '</div>' +
-      '<div class="row top">' + categoriasPanel(m) + sidePanels(m) + '</div>';
+      ((m.features || {}).metas || (m.features || {}).limites ? '<div class="row top">' + ((m.features || {}).metas ? metasPanel(m) : '') + ((m.features || {}).limites ? limitesPanel(m) : '') + '</div>' : '') +
+      '<div class="row top">' + categoriasPanel(m) + sidePanels(m) + '</div>' +
+      (m.historico && m.historico.length > 1 ? graficoPanel(m) : '');
   }
 
   // ---------- Lançamentos ----------
@@ -459,6 +568,7 @@
       for (const t of rows) { if (!by[t.cat]) { by[t.cat] = { cat: t.cat, label: t.catLabel, rows: [], total: 0 }; groups.push(by[t.cat]); } by[t.cat].rows.push(t); by[t.cat].total += t.valor; }
       groups.sort((a, b) => a.total - b.total);
     }
+    S.lancRows = rows;
     const canFix = (t) => ['expense', 'pix_credit'].includes(t.kind) && t.valor < 0;
     const options = (sel) => m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
     return '<section class="panel" aria-label="Lançamentos">' +
@@ -467,7 +577,8 @@
       (S.cat ? '<button type="button" class="chip on" data-act="cat-clear" aria-label="Tirar o filtro de categoria" style="background:' + catStyle(S.cat).fg + '">' + esc((m.cats.find((c) => c.id === S.cat) || { label: S.cat }).label) + ' ✕</button>' : '') +
       '</div><input class="search" id="busca" type="search" placeholder="Buscar" aria-label="Buscar lançamentos" value="' + esc(S.q) + '"></div>' +
       '<div class="lanc-tools"><label class="mini-sel"><span>Categoria</span><select id="lanc-cat"><option value="">Todas</option>' + m.cats.map((c) => '<option value="' + c.id + '"' + (c.id === S.cat ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('') + '</select></label>' +
-      '<label class="mini-sel"><span>Ordenar por</span><select id="lanc-ordem">' + [['data', 'Data'], ['valor', 'Maior valor'], ['categoria', 'Categoria (agrupado)']].map(([k, l]) => '<option value="' + k + '"' + (S.ordem === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></div>' +
+      '<label class="mini-sel"><span>Ordenar por</span><select id="lanc-ordem">' + [['data', 'Data'], ['valor', 'Maior valor'], ['categoria', 'Categoria (agrupado)']].map(([k, l]) => '<option value="' + k + '"' + (S.ordem === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
+      (rows.length ? '<button type="button" class="btn small" style="margin-left:auto" data-act="csv">' + icon('down', 14, 2) + 'Baixar planilha</button>' : '') + '</div>' +
       '<span class="sub">' + rows.length + (rows.length === 1 ? ' lançamento' : ' lançamentos') + '. Para mudar a categoria, clique nela.</span>' +
       (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Descrição</th><th>Data</th><th>Categoria</th><th>Conta ou cartão</th><th>Valor</th><th><span class="sr">Despesa fixa</span></th></tr></thead><tbody>' +
         (S.ordem === 'categoria' ? groups.map((g) => '<tr class="grp"><td colspan="6"><span class="desc">' + tile(g.cat, true) + esc(g.label) + ' <span class="sub">· ' + g.rows.length + (g.rows.length === 1 ? ' lançamento' : ' lançamentos') + '</span></span><b>' + signedBrl(g.total) + '</b></td></tr>' + g.rows.map(rowHtml).join('')).join('') : rows.map(rowHtml).join('')) + '</tbody></table></div>'
@@ -481,7 +592,7 @@
             '<td>' + (fixed ? '<span class="pill" style="background:' + st.bg + ';color:' + st.fg + '">' + esc(t.catLabel) + '</span>'
               : '<select class="cat-select" data-tx="' + esc(t.id) + '" aria-label="Categoria de ' + esc(t.nome) + '" style="background:' + st.bg + ';color:' + st.fg + '">' + options(t.cat) + '</select>') + '</td>' +
             '<td><span style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:' + t.bankCor + '"></span>' + esc(t.conta) + '</span></td>' +
-            '<td style="font-weight:700;white-space:nowrap;color:' + (t.valor > 0 ? '#15803d' : '#0f172a') + '">' + signedBrl(t.valor) + '</td>' +
+            '<td style="font-weight:700;white-space:nowrap;color:' + (t.valor > 0 ? 'var(--green-d)' : 'var(--ink)') + '">' + signedBrl(t.valor) + '</td>' +
             '<td class="fix-cell">' + (canFix(t) ? '<button type="button" class="icon-btn ghost" data-act="tx-fixa" data-v="' + esc(t.id) + '" aria-label="Virar despesa fixa: ' + esc(t.nome) + '" title="Virar despesa fixa">' + icon('contas', 16) + '</button>' : '') + '</td></tr>';
     }
   }
@@ -496,6 +607,7 @@
       proxBoxes(c) +
       (c.manual ? '<button type="button" class="btn small rose" style="align-self:flex-start" data-act="dlg-credit" data-v="' + esc(c.manualId) + '">' + icon('pencil', 14) + 'Atualizar gasto e limite</button>'
         : '<span class="sub">' + (c.parceladas ? c.parceladas + (c.parceladas === 1 ? ' compra parcelada em andamento.' : ' compras parceladas em andamento.') : '') + (c.atual.fonte ? (c.parceladas ? ' ' : '') + 'Como calculei: ' + esc(c.atual.fonte) + '. O banco atualiza uma vez por dia.' : '') + '</span>') + '</section>').join('') + '</div>' +
+      ((m.features || {}).parcelas && m.parcelas ? parcelasPanel(m) : '') +
       '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:4px"><h2 class="h2">Total que falta pagar nos cartões</h2><span class="sub">Soma da fatura mostrada em cada cartão, já descontado o que você antecipou.</span></div><span class="big">' + brl(m.cardsTotal) + '</span></section>';
   }
 
@@ -528,7 +640,8 @@
         '<button type="button" class="icon-btn ghost" data-act="dlg-bill" data-v="' + esc(b.id) + '" aria-label="Editar ' + esc(b.nome) + '">' + icon('pencil', 16) + '</button>' +
         '<button type="button" class="icon-btn ghost" data-act="bill-remove" data-v="' + esc(b.id) + '" aria-label="Apagar ' + esc(b.nome) + '">' + icon('trash', 16) + '</button></div>').join('') + '</div>'
         : '<div class="empty-state">Nada cadastrado ainda. Comece pelo apartamento.<button type="button" class="btn small primary" data-act="dlg-bill">Adicionar despesa</button></div>') +
-      '<span class="sub">“Como aparece no extrato” são palavras do pagamento (ex.: o nome de quem recebe). Quando o app acha o pagamento, a despesa fica paga sozinha.</span></section>';
+      '<span class="sub">“Como aparece no extrato” são palavras do pagamento (ex.: o nome de quem recebe). Quando o app acha o pagamento, a despesa fica paga sozinha.</span></section>' +
+      ((m.features || {}).assinaturas && m.assinaturas ? assinaturasPanel(m) : '');
   }
 
   // ---------- Bancos e ajustes ----------
@@ -591,9 +704,12 @@
         + '') +
       '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Salvar</button></div></form>' + msg('settings') + '</section>' +
 
+      (m.sync.web ? featuresPanel(m) : '') +
       (m.sync.web ? '<section class="panel"><h2 class="h2">Trazer do app de Windows</h2><span class="sub">Escolha o arquivo meu-caixa.json do app de Windows. Vêm junto bancos, lançamentos, despesas fixas, regras de categoria e o crédito do iFood. A chave da Pluggy não vem: cole aqui de novo.</span>' +
         '<label class="btn small" style="align-self:flex-start;cursor:pointer">' + icon('down', 14, 2) + 'Escolher arquivo<input type="file" id="importar" accept=".json,application/json" hidden></label>' + msg('import') + '</section>' +
         '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><h2 class="h2">Sua conta</h2><span class="sub">' + esc(api.email ? api.email() : '') + '</span></div><button type="button" class="btn small" data-act="logout">Sair desta conta</button></section>' : '') +
+      '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px"><div><h2 class="h2">Aparência</h2><span class="sub">Vale só para este aparelho.</span></div><div class="chips" role="radiogroup" aria-label="Aparência">' +
+        [['auto', 'Automático'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => '<button type="button" class="chip' + (S.tema === k ? ' on' : '') + '" role="radio" aria-checked="' + (S.tema === k) + '" data-act="tema" data-v="' + k + '">' + l + '</button>').join('') + '</div></section>' +
       '<section class="panel"><div class="head"><div><h2 class="h2">Categorias fixas</h2><span class="sub">Criadas quando você troca a categoria em Lançamentos e escolhe “Sempre”.</span></div></div>' +
       (m.catRules.length ? '<div class="list">' + m.catRules.map((r) => '<div class="li">' + tile(r.cat, true) + '<div class="grow"><span class="t">“' + esc(r.termo) + '”</span><span class="m">sempre ' + esc(r.label) + '</span></div>' +
         '<button type="button" class="icon-btn ghost" data-act="catrule-remove" data-v="' + esc(r.id) + '" aria-label="Apagar a regra ' + esc(r.termo) + '">' + icon('trash', 16) + '</button></div>').join('') + '</div>' : '<div class="empty-state" style="padding:12px">Nenhuma ainda.</div>') +
@@ -622,7 +738,8 @@
     'Quanto consigo guardar por mês para o apartamento?',
     'Monta um orçamento para o próximo mês',
     'Tem algum gasto que eu deveria cortar?',
-    'Como está minha fatura dos cartões este mês?'
+    'Como está minha fatura dos cartões este mês?',
+    'Posso comprar algo de R$ 3.000 em 10x?'
   ];
 
   function screenIA(m) {
@@ -728,6 +845,25 @@
         '<form data-form="catrule" class="form" style="grid-template-columns:1fr"><input type="hidden" name="cat" value="' + esc(d.cat) + '">' +
         '<div class="field"><label for="ct">Sempre que aparecer</label><input id="ct" name="termo" value="' + esc(d.termo) + '"><small>Vale para todos os lançamentos, antigos e novos, que tenham esse nome. Use só o essencial, como “fulana de tal” ou “discord”.</small></div>' +
         '<div class="actions"><button type="button" class="btn" data-act="cat-once">Só este lançamento</button><button type="submit" class="btn primary">Sempre ' + esc(label) + '</button></div></form>' + msg('dlg');
+    } else if (d.type === 'meta') {
+      const g = d.id ? (m.settings.metas || []).find((x) => x.id === d.id) || {} : {};
+      const contas = m.settings.reserveOptions || [];
+      body = '<h2 class="h2" id="dlg-t">' + (d.id ? 'Editar meta' : 'Nova meta') + '</h2>' +
+        '<form data-form="meta" class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><input type="hidden" name="id" value="' + esc(g.id || '') + '">' +
+        '<div class="field"><label for="gn">Nome</label><input id="gn" name="nome" required value="' + esc(g.nome || '') + '" placeholder="Apartamento"></div>' +
+        '<div class="field"><label for="gv">Valor da meta</label><input id="gv" name="valor" inputmode="decimal" required value="' + (g.valor ? moneyRaw(g.valor) : '') + '" placeholder="60.000,00"></div>' +
+        '<div class="field"><label for="gp">Até quando (opcional)</label><input id="gp" name="prazo" type="month" value="' + esc(g.prazo || '') + '"><small>Com prazo, o app diz quanto guardar por mês.</small></div>' +
+        '<div class="field"><label for="gc">Onde está o dinheiro</label><select id="gc" name="contaId"><option value="">Vou dizer quanto já tenho</option>' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaId ? ' selected' : '') + '>Saldo da conta ' + esc(c.nome) + '</option>').join('') + '</select><small>Escolhendo uma conta, o valor guardado se atualiza sozinho com o saldo dela.</small></div>' +
+        '<div class="field" id="wrap-guardado"' + (g.contaId ? ' hidden' : '') + '><label for="gg">Quanto já tem guardado</label><input id="gg" name="guardado" inputmode="decimal" value="' + (g.guardado ? moneyRaw(g.guardado) : '') + '" placeholder="0,00"></div>' +
+        '<div class="actions" style="grid-column:1/-1">' + (d.id ? '<button type="button" class="btn danger" data-act="meta-remove" data-v="' + esc(g.id) + '">Apagar</button>' : '') + '<button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
+    } else if (d.type === 'limites') {
+      const cur = m.settings.limites || {};
+      const gastos = {};
+      for (const c of m.categorias) gastos[c.cat] = c.valor;
+      const cats = m.cats.filter((c) => !['renda', 'reserva', 'pix'].includes(c.id));
+      body = '<h2 class="h2" id="dlg-t">Limites por mês</h2><span class="sub">Deixe em branco a categoria que não quer limitar. Ao lado, quanto já foi este mês.</span>' +
+        '<form data-form="limites" class="lim-form">' + cats.map((c) => '<label class="lim-row">' + tile(c.id, true) + '<span class="grow"><b>' + esc(c.label) + '</b><small>' + (gastos[c.id] ? brl(gastos[c.id]) + ' este mês' : 'nada este mês') + '</small></span><input name="' + esc(c.id) + '" inputmode="decimal" placeholder="sem limite" value="' + (cur[c.id] ? moneyRaw(cur[c.id]) : '') + '" aria-label="Limite para ' + esc(c.label) + '"></label>').join('') +
+        '<div class="actions"><button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
     } else if (d.type === 'confirm') {
       body = '<h2 class="h2" id="dlg-t">' + esc(d.title) + '</h2><span class="sub" style="font-size:14px">' + esc(d.text) + '</span>' +
         '<div class="actions"><button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="button" class="btn rose" data-act="confirm-yes">' + esc(d.yes) + '</button></div>';
@@ -806,6 +942,10 @@
         const a = ((S.notif && S.notif.list) || []).find((x) => x.id === v);
         S.notif = null;
         if (a && a.tipo === 'conta') { S.screen = 'contas'; S.month = null; }
+        else if (a && a.tipo === 'limite') { S.screen = 'lanc'; S.cat = a.cat; S.filtro = 'todos'; S.q = ''; S.month = null; }
+        else if (a && a.tipo === 'resumo') { S.screen = 'visao'; S.month = a.mes; }
+        else if (a && a.tipo === 'semanal') { S.screen = 'ia'; }
+        else if (a && a.tipo === 'alerta') { S.screen = 'lanc'; S.cat = null; S.filtro = 'todos'; S.q = a.titulo.replace(/^Cobrança repetida\? /, '').replace(/ (veio alto|ficou mais cara)$/, ''); S.month = null; }
         else if (a) { S.screen = 'lanc'; S.cat = null; S.filtro = 'todos'; S.q = a.titulo.replace(/, \d+ de \d+$/, ''); S.month = null; }
         window.scrollTo(0, 0); await load(); break;
       }
@@ -840,6 +980,39 @@
       case 'dlg-credit': S.dialog = { type: 'credit', id: v || null }; S.msg.dlg = null; render(); break;
       case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; saveLanc(); try { history.replaceState(null, '', '#lanc'); } catch (err) { /* sem histórico */ } window.scrollTo(0, 0); render(); break;
       case 'cat-clear': S.cat = null; saveLanc(); render(); break;
+      case 'dlg-meta': S.dialog = { type: 'meta', id: v || null }; S.msg.dlg = null; render(); break;
+      case 'dlg-limites': S.dialog = { type: 'limites' }; S.msg.dlg = null; render(); break;
+      case 'meta-remove': {
+        const g = (S.m.settings.metas || []).find((x) => x.id === v);
+        S.dialog = { type: 'confirm', title: 'Apagar a meta ' + (g ? g.nome : '') + '?', text: 'Só a meta some. Seu dinheiro e seus lançamentos continuam iguais.', yes: 'Apagar', run: () => api.removeMeta(v) };
+        render(); break;
+      }
+      case 'csv': {
+        const rows = S.lancRows || [];
+        const ano = S.m.month.ano;
+        const cell = (x) => { const v = String(x === null || x === undefined ? '' : x); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+        const num = (v) => (v < 0 ? '-' : '') + moneyRaw(v);
+        const lines = [['Data', 'Descrição', 'Categoria', 'Conta ou cartão', 'Valor', 'Tipo'].join(';')].concat(rows.map((t) => [t.data + '/' + ano, t.nome, t.catLabel, t.conta, num(t.valor), t.tag || (t.valor > 0 ? 'Entrada' : 'Gasto')].map(cell).join(';')));
+        const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'lancamentos-' + S.m.month.key + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        toast('Planilha baixada: ' + rows.length + ' lançamentos. Abre no Excel e no Google Planilhas.');
+        break;
+      }
+      case 'tema':
+        try { localStorage.setItem('meucaixa-tema', v); } catch (err) { /* sem armazenamento */ }
+        S.tema = applyTheme(); render(); break;
+      case 'parc-mes': S.parcMes = S.parcMes === v ? null : v; render(); break;
+      case 'ass-fixa': {
+        const x = (S.m.assinaturas || [])[Number(v)];
+        if (!x) break;
+        const iconOk = BILL_ICONS.some(([k]) => k === x.cat) ? x.cat : 'assinaturas';
+        S.dialog = { type: 'bill', id: null, freq: 'mensal', prefill: { origem: x.nome, busca: x.termo, nome: x.nome, valor: x.valor, dia: x.dia, icon: iconOk, pagamento: /crédito$/.test(x.conta) ? 'cartao' : 'conta', freq: 'mensal' } };
+        S.msg.dlg = null; render(); break;
+      }
       case 'tx-fixa': {
         const t = S.m.lancamentos.find((x) => x.id === v);
         if (!t) break;
@@ -964,6 +1137,14 @@
       const res = await api.saveBill(data);
       if (res.ok) { S.dialog = null; toast('Conta salva.'); await load(); }
       else { S.msg.dlg = { ok: false, text: res.message }; render(); }
+    } else if (kind === 'meta') {
+      const res = await api.saveMeta(data);
+      if (res.ok) { S.dialog = null; toast('Meta salva.'); await load(); }
+      else { S.msg.dlg = { ok: false, text: res.message }; render(); }
+    } else if (kind === 'limites') {
+      const res = await api.saveLimites(data);
+      if (res.ok) { S.dialog = null; toast('Limites salvos.'); await load(); }
+      else { S.msg.dlg = { ok: false, text: res.message }; render(); }
     } else if (kind === 'ai') {
       sendAi(data.q);
     } else if (kind === 'aikey') {
@@ -1023,6 +1204,11 @@
       return;
     }
     if (e.target.id === 'bf') { toggleFreq(e.target.value); return; }
+    if (e.target.id === 'gc') { const w = document.getElementById('wrap-guardado'); if (w) w.hidden = !!e.target.value; return; }
+    if (e.target.dataset && e.target.dataset.feature) {
+      const patch = {}; patch[e.target.dataset.feature] = e.target.checked;
+      await api.saveFeatures(patch); await load(); return;
+    }
     if (e.target.id === 'lanc-cat') { S.cat = e.target.value || null; saveLanc(); render(); return; }
     if (e.target.id === 'lanc-ordem') { S.ordem = e.target.value; saveLanc(); render(); return; }
     const sel = e.target.closest('select.cat-select');
