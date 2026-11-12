@@ -67,34 +67,6 @@ async function runSync(db, env) {
   }
 }
 
-const REFRESH_MS = 3 * 60 * 60 * 1000;
-
-// Pede atualização aos bancos no máximo a cada 3 horas, para não gastar o limite mensal do Open Finance.
-async function requestRefresh(db, env, force) {
-  if (db.settings.demo) return { ok: false, message: 'No modo de exemplo não há bancos para atualizar.' };
-  const c = client(db, env);
-  if (!c) return { ok: false, message: 'Falta o Client ID e o Client Secret da Pluggy em Bancos e ajustes.' };
-  const last = Number(db.settings.refreshAt) || 0;
-  if (Date.now() - last < (force ? 60 * 60 * 1000 : REFRESH_MS)) {
-    const mins = Math.ceil(((force ? 60 * 60 * 1000 : REFRESH_MS) - (Date.now() - last)) / 60000);
-    return { ok: false, message: 'Já pedi há pouco. Dá para pedir de novo em ' + (mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min' : mins + ' min') + '.' };
-  }
-  const results = [];
-  for (const it of db.settings.items || []) {
-    const before = (db.items && db.items[it.id] && db.items[it.id].lastUpdatedAt) || null;
-    try {
-      const r = await c.updateItem(it.id);
-      results.push({ banco: it.label, ok: true, status: r.status || null, exec: r.executionStatus || null, antes: before, depois: r.lastUpdatedAt || null });
-    } catch (e) {
-      results.push({ banco: it.label, ok: false, erro: e.message, codigo: e.status || null, antes: before });
-    }
-  }
-  db.settings.refreshAt = Date.now();
-  db.refreshLog = [{ at: new Date().toISOString(), auto: !force, results }].concat(db.refreshLog || []).slice(0, 30);
-  const okN = results.filter((x) => x.ok).length;
-  return { attempted: true, ok: okN > 0, pedidos: okN, total: results.length, message: okN ? null : 'A Pluggy não aceitou o pedido: ' + (results[0] && results[0].erro || 'sem resposta') + '.' };
-}
-
 // Cada ação devolve { result, changed }. "changed" diz se precisa gravar o banco.
 const actions = {
   'model:get': async (db, month, env) => {
@@ -106,8 +78,6 @@ const actions = {
     m.sync.hasData = Object.keys(db.accounts || {}).length > 0;
     m.sync.autoStartAvailable = false;
     m.sync.web = true;
-    m.sync.refreshAt = db.settings.refreshAt || null;
-    m.sync.refreshDue = configured && !db.settings.demo && (db.settings.items || []).length > 0 && (Date.now() - (Number(db.settings.refreshAt) || 0)) > REFRESH_MS;
     m.sync.stale = configured && !db.settings.demo && m.sync.hasItems && (!db.lastSync || (Date.now() - new Date(db.lastSync)) > STALE_MS);
     m.ai = {
       configured: !!(db.secrets && db.secrets.openai),
@@ -116,11 +86,6 @@ const actions = {
     };
     m.cats = Object.entries(CATS).filter(([k]) => k !== 'fatura').map(([k, v]) => ({ id: k, label: v.label }));
     return { result: m };
-  },
-
-  'items:refresh': async (db, arg, env) => {
-    const r = await requestRefresh(db, env, !!(arg && arg.manual));
-    return { result: r, changed: !!r.attempted };
   },
 
   'sync:now': async (db, arg, env) => {

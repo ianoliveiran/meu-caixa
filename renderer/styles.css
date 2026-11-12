@@ -322,5 +322,3 @@ td.fix-cell { width: 44px; padding-left: 4px; }
   .top-bar { position: relative; }
   .menu.notif { left: 8px; right: 8px; width: auto; }
 }
-.refresh-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
-.refresh-row > div { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
