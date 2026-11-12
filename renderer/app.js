@@ -24,6 +24,29 @@
     hide: false
   };
   try { S.hide = localStorage.getItem('meucaixa-ocultar') === '1'; } catch (e) { /* sem armazenamento */ }
+  // Filtros de Lançamentos ficam como você deixou, até entre abas.
+  try {
+    const l = JSON.parse(localStorage.getItem('meucaixa-lanc') || '{}');
+    if (l.filtro) S.filtro = l.filtro;
+    if (l.ordem) S.ordem = l.ordem;
+    if (l.cat) S.cat = l.cat;
+  } catch (e) { /* sem armazenamento */ }
+  function saveLanc() {
+    try { localStorage.setItem('meucaixa-lanc', JSON.stringify({ filtro: S.filtro, ordem: S.ordem, cat: S.cat })); } catch (e) { /* sem armazenamento */ }
+  }
+  const SCREENS = ['visao', 'ia', 'lanc', 'cartoes', 'contas', 'fixas', 'bancos'];
+  function screenFromHash() {
+    const h = location.hash.replace('#', '');
+    return SCREENS.includes(h) ? h : null;
+  }
+  S.screen = screenFromHash() || S.screen;
+  function goScreen(v) {
+    S.screen = v; S.day = null; S.msg = {}; S.notif = null;
+    try { history.replaceState(null, '', v === 'visao' ? location.pathname : '#' + v); } catch (e) { /* sem histórico */ }
+    window.scrollTo(0, 0);
+    render();
+  }
+  window.addEventListener('hashchange', () => { const v = screenFromHash(); if (v && v !== S.screen) goScreen(v); });
 
   // ---------- Utilidades ----------
   const esc = (s) => String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -91,7 +114,7 @@
   ];
 
   function sidebar(m) {
-    const navBtn = ([id, label, ic]) => '<button type="button" data-act="nav" data-v="' + id + '" class="' + (S.screen === id ? 'on' : '') + '">' + icon(ic) + label + '</button>';
+    const navBtn = ([id, label, ic]) => '<a href="#' + id + '" data-act="nav" data-v="' + id + '" class="' + (S.screen === id ? 'on' : '') + '"' + (S.screen === id ? ' aria-current="page"' : '') + '>' + icon(ic) + label + '</a>';
     let box;
     if (S.syncing) {
       const p = S.progress;
@@ -759,13 +782,16 @@
 
   root.addEventListener('click', async (e) => {
     const el = e.target.closest('[data-act]');
+    // Ctrl/Cmd/Shift + clique num link abre em outra aba, como num site normal.
+    if (el && el.tagName === 'A' && (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0)) return;
+    if (el && el.tagName === 'A') e.preventDefault();
     if (!el) { if ((S.menu || S.notif) && !e.target.closest('.menu')) { S.menu = false; S.notif = null; render(); } return; }
     const act = el.dataset.act;
     const v = el.dataset.v;
     if (act !== 'menu' && S.menu) S.menu = false;
     if (S.notif && !['notif', 'notif-open', 'notif-all', 'hide'].includes(act)) S.notif = null;
     switch (act) {
-      case 'nav': S.screen = v; S.day = null; S.msg = {}; if (v === 'lanc') S.cat = null; window.scrollTo(0, 0); render(); break;
+      case 'nav': goScreen(v); break;
       case 'month': S.month = v || null; S.day = null; await load(); break;
       case 'menu': S.menu = !S.menu; S.notif = null; render(); break;
       case 'notif':
@@ -808,12 +834,12 @@
       case 'day': S.day = v ? (S.day === Number(v) ? null : Number(v)) : null; render(); break;
       case 'toggle-paid': S.showPaid = !S.showPaid; render(); break;
       case 'bill-mark': await run(api.markBill({ month: S.month, id: v, paid: el.dataset.paid === '1' }), 'bill'); break;
-      case 'filtro': S.filtro = v; render(); break;
+      case 'filtro': S.filtro = v; saveLanc(); render(); break;
       case 'dlg-bill': S.dialog = { type: 'bill', id: v || null, freq: el.dataset.freq || null }; S.msg.dlg = null; render(); break;
       case 'dlg-manual': S.dialog = { type: 'manual', id: v || null }; S.msg.dlg = null; render(); break;
       case 'dlg-credit': S.dialog = { type: 'credit', id: v || null }; S.msg.dlg = null; render(); break;
-      case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; window.scrollTo(0, 0); render(); break;
-      case 'cat-clear': S.cat = null; render(); break;
+      case 'cat-open': S.cat = v; S.filtro = 'todos'; S.q = ''; S.screen = 'lanc'; saveLanc(); try { history.replaceState(null, '', '#lanc'); } catch (err) { /* sem histórico */ } window.scrollTo(0, 0); render(); break;
+      case 'cat-clear': S.cat = null; saveLanc(); render(); break;
       case 'tx-fixa': {
         const t = S.m.lancamentos.find((x) => x.id === v);
         if (!t) break;
@@ -997,8 +1023,8 @@
       return;
     }
     if (e.target.id === 'bf') { toggleFreq(e.target.value); return; }
-    if (e.target.id === 'lanc-cat') { S.cat = e.target.value || null; render(); return; }
-    if (e.target.id === 'lanc-ordem') { S.ordem = e.target.value; render(); return; }
+    if (e.target.id === 'lanc-cat') { S.cat = e.target.value || null; saveLanc(); render(); return; }
+    if (e.target.id === 'lanc-ordem') { S.ordem = e.target.value; saveLanc(); render(); return; }
     const sel = e.target.closest('select.cat-select');
     if (sel) {
       const t = S.m.lancamentos.find((x) => x.id === sel.dataset.tx);

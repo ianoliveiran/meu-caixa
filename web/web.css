@@ -17,7 +17,7 @@ body { padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) en
   .side .brand { padding: 0 4px; }
   .side .nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 4px; flex: 1 1 100%; scrollbar-width: none; }
   .side .nav::-webkit-scrollbar { display: none; }
-  .side .nav button { flex: 0 0 auto; min-height: 40px; padding: 0 12px; font-size: 13px; }
+  .side .nav button, .side .nav a { flex: 0 0 auto; min-height: 40px; padding: 0 12px; font-size: 13px; }
   .side > .nav + .nav { display: none; }
   .main { flex-basis: 100%; gap: 12px; }
   .top-bar { padding: 8px 10px; border-radius: 16px; }

@@ -531,7 +531,9 @@ function buildModel(db, opts) {
   const avisos = [];
   const avisoKinds = new Set(['expense', 'pix_credit', 'fee', 'income', 'refund']);
   for (const t of all) {
-    if (!t.createdAt || (now - t.createdAt) > 7 * DAY || (now - t.date) > 10 * DAY || !avisoKinds.has(t.kind)) continue;
+    if (!t.createdAt || (now - t.createdAt) > 7 * DAY || !avisoKinds.has(t.kind)) continue;
+    // Só o que chegou perto da data da compra. Lançamento antigo trazido de uma vez (primeira sincronização) não é novidade.
+    if ((t.createdAt - t.date) > 3 * DAY) continue;
     const v = label(t);
     avisos.push({ id: 'tx:' + t.id, tipo: 'tx', titulo: v.nome, texto: v.conta + ' · ' + v.data, valor: v.valor, cat: v.cat, marca: v.marca, termo: v.termo, quando: +t.createdAt, novo: +t.createdAt > seenAt });
   }
