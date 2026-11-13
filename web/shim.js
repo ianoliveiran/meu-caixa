@@ -107,6 +107,7 @@
     saveSecrets: call('secrets:save'),
     addItem: call('items:add'),
     removeItem: call('items:remove'),
+    renameItem: call('items:rename'),
     saveSettings: call('settings:save'),
     saveBill: call('bills:save'),
     removeBill: call('bills:remove'),

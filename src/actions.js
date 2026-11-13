@@ -270,6 +270,15 @@ const actions = {
     return { result: { ok: true }, changed: true };
   },
 
+  'items:rename': async (db, { id, label } = {}) => {
+    label = String(label || '').trim().slice(0, 40);
+    if (!label) return { result: { ok: false, message: 'Escreva o nome do banco.' } };
+    const it = (db.settings.items || []).find((x) => x.id === id);
+    if (!it) return { result: { ok: false, message: 'Não achei esse banco.' } };
+    it.label = label;
+    return { result: { ok: true }, changed: true };
+  },
+
   'items:remove': async (db, id) => {
     db.settings.items = (db.settings.items || []).filter((x) => x.id !== id);
     removeItem(db, id);

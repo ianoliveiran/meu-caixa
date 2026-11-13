@@ -689,7 +689,7 @@
   // ---------- Cartões ----------
   function screenCartoes(m) {
     if (!m.cards.length) return '<section class="panel"><div class="empty-state">Nenhum cartão de crédito conectado ainda.</div></section>';
-    return '<div class="row top">' + m.cards.map((c) => '<section class="panel" style="flex:1 1 300px;gap:18px">' + cardFace(c, { flat: true }) +
+    return '<div class="row top">' + m.cards.map((c) => '<section class="panel" style="flex:1 1 300px;max-width:520px;gap:18px">' + cardFace(c, { flat: true }) +
       '<div style="display:flex;flex-direction:column;gap:4px"><span class="sub">' + (c.manual ? 'Lançado à mão' : 'Fatura ' + esc(c.atual.estado.toLowerCase())) + ' · vence ' + esc(c.atual.vence) + '</span>' + bigNum(c.atual.valor) +
       (c.atual.antecipado > 0 ? '<span class="good" style="font-size:13px">' + icon('check', 14, 2) + brl(c.atual.antecipado) + ' antecipado de ' + brl(c.atual.total) + '</span>' : '') + '</div>' +
       (c.limite > 0 ? '<div style="display:flex;flex-direction:column;gap:6px"><div role="img" aria-label="' + c.uso + '% do limite em uso" class="track" style="height:10px"><div style="height:10px;width:' + c.uso + '%;background:' + c.solid + '"></div></div><span class="sub">' + c.uso + '% de ' + brl(c.limite) + ' em uso · livre ' + brl(c.livre) + '</span></div>' : '') +
@@ -748,7 +748,7 @@
           '<div class="grow" style="flex:1 1 200px"><span class="t">' + esc(b.nome) + (b.reserva ? ' <span class="pill" style="background:var(--soft-pink-bg);color:var(--soft-pink-fg);font-size:10px">reserva</span>' : '') + '</span><span class="m">' + esc(b.tipo) + (b.consentimento ? ' · autorizado até ' + esc(dateBr(b.consentimento)) : '') + '</span></div>' +
           '<span class="m" style="flex:1 1 200px;font-weight:600;color:' + (b.erro ? 'var(--red-fg)' : 'var(--soft-green-fg)') + '">' + (b.erro ? esc(b.erro) : 'Atualizado ' + esc(when(b.atualizado || m.sync.last))) + '</span>' +
           '<span class="v">' + brl(b.saldo) + '</span>' +
-          (m.sync.demo ? '' : '<button type="button" class="icon-btn ghost" data-act="item-remove" data-v="' + esc(b.id) + '" aria-label="Remover ' + esc(b.nome) + '">' + icon('trash', 16) + '</button>') +
+          (m.sync.demo ? '' : '<button type="button" class="icon-btn ghost" data-act="item-rename" data-v="' + esc(b.id) + '" data-nome="' + esc(b.nome) + '" aria-label="Trocar o nome de ' + esc(b.nome) + '" title="Trocar o nome">' + icon('pencil', 16) + '</button><button type="button" class="icon-btn ghost" data-act="item-remove" data-v="' + esc(b.id) + '" aria-label="Remover ' + esc(b.nome) + '">' + icon('trash', 16) + '</button>') +
           '</div>').join('') + '</div>'
       : '<div class="empty-state" style="padding:12px">Nenhum banco ainda.</div>';
     const pending = s.items.filter((it) => !m.bancos.some((b) => b.id === it.id));
@@ -787,7 +787,7 @@
       '<div class="field"><label for="sal">Salário líquido</label><input id="sal" name="salario" inputmode="decimal" value="' + (s.salario ? moneyRaw(s.salario) : '') + '" placeholder="6.500,00"><small>Usado para calcular o que sobra do próximo salário.</small></div>' +
       '<div class="field"><label for="dsal">Dia do salário</label><input id="dsal" name="diaSalario" inputmode="numeric" value="' + esc(s.diaSalario) + '"><small>Se cair no fim de semana, o app conta o primeiro dia útil depois.</small></div>' +
       '<div class="field"><label for="inv">Quanto quer investir por mês</label><input id="inv" name="investir" inputmode="decimal" value="' + moneyRaw(s.investir) + '" placeholder="0,00"><small>Sai do salário antes da sobra. Deixe 0 se não for investir agora.</small></div>' +
-      '<div class="field"><label for="cpf">Seu CPF (opcional)</label><input id="cpf" name="cpf" inputmode="numeric" placeholder="' + (s.cpf ? esc(s.cpf) : 'só números') + '"><small>Ajuda a reconhecer Pix entre contas suas. Fica só neste PC.</small></div>' +
+      '<div class="field"><label for="cpf">Seu CPF (opcional)</label><input id="cpf" name="cpf" inputmode="numeric" placeholder="' + (s.cpf ? esc(s.cpf) : 'só números') + '"><small>Ajuda a reconhecer Pix entre contas suas. ' + (m.sync.web ? 'Fica na sua conta, criptografado.' : 'Fica só neste PC.') + '</small></div>' +
       (m.sync.web ? '' : '<div class="field"><label for="hrs">Sincronizar a cada</label><select id="hrs" name="syncHours">' + [1, 2, 3, 6, 12].map((h) => '<option value="' + h + '"' + (h === s.syncHours ? ' selected' : '') + '>' + h + (h === 1 ? ' hora' : ' horas') + '</option>').join('') + '</select></div>' +
       '<div class="field"><label>Ao ligar o computador</label><label class="switch"><input type="checkbox" name="autoStart"' + (s.autoStart ? ' checked' : '') + (m.sync.autoStartAvailable ? '' : ' disabled') + '> Abrir o Meu Cofrin junto com o Windows</label></div>'
         + '') +
@@ -963,6 +963,10 @@
         '<div class="field" id="wrap-desde"' + (g.billId ? '' : ' hidden') + '><label for="gd">Contar parcelas a partir de</label><input id="gd" name="desde" type="month" value="' + esc(g.desde || mesAtual) + '"><small>As parcelas desse mês em diante que aparecerem no extrato somam na meta.</small></div>' +
         '<div class="field" id="wrap-extra" style="grid-column:1/-1"' + (g.billId ? '' : ' hidden') + '><label for="gx">Dinheiro extra guardado em (opcional)</label><select id="gx" name="contaExtra"><option value="">Em nenhuma conta separada</option>' + contas.map((c) => '<option value="' + esc(c.id) + '"' + (c.id === g.contaExtra ? ' selected' : '') + '>Somar o saldo da conta ' + esc(c.nome) + '</option>').join('') + '</select><small>Se você junta o que falta numa conta só para isso, o saldo dela soma na meta junto com as parcelas.</small></div>' +
         '<div class="actions" style="grid-column:1/-1">' + (d.id ? '<button type="button" class="btn danger" data-act="meta-remove" data-v="' + esc(g.id) + '">Apagar</button>' : '') + '<button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
+    } else if (d.type === 'rename') {
+      body = '<h2 class="h2" id="dlg-t">Nome do banco</h2><span class="sub">O nome define a cor e o logo do cartão. Use o nome do banco, como Nubank, Itaú ou Inter.</span>' +
+        '<form data-form="rename" class="form"><input type="hidden" name="id" value="' + esc(d.id) + '"><div class="field"><label for="rn">Nome</label><input id="rn" name="label" required maxlength="40" value="' + esc(d.nome && d.nome !== 'MeuPluggy' ? d.nome : '') + '" placeholder="Nubank"></div>' +
+        '<div class="actions"><button type="button" class="btn" data-act="dlg-close">Cancelar</button><button type="submit" class="btn primary">Salvar</button></div></form>' + msg('dlg');
     } else if (d.type === 'lembrete') {
       body = '<h2 class="h2" id="dlg-t">Novo lembrete</h2>' +
         '<form data-form="lembrete" class="form" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">' +
@@ -1104,6 +1108,7 @@
         await load(); break;
       }
       case 'fixado-ver': S.termo = S.termo === v ? null : v; S.month = S.termo ? S.month : S.month; render(); break;
+      case 'item-rename': S.dialog = { type: 'rename', id: v, nome: el.dataset.nome }; S.msg.dlg = null; render(); break;
       case 'dlg-lembrete': S.dialog = { type: 'lembrete' }; S.msg.dlg = null; render(); break;
       case 'lembrete-done': el.disabled = true; await api.doneLembrete(v); toast('Lembrete concluído.'); await load(); break;
       case 'dlg-limites': S.dialog = { type: 'limites' }; S.msg.dlg = null; render(); break;
@@ -1299,6 +1304,10 @@
     } else if (kind === 'meta') {
       const res = await api.saveMeta(data);
       if (res.ok) { S.dialog = null; toast('Meta salva.'); await load(); }
+      else { S.msg.dlg = { ok: false, text: res.message }; render(); }
+    } else if (kind === 'rename') {
+      const res = await api.renameItem(data);
+      if (res.ok) { S.dialog = null; toast('Nome trocado.'); await load(); }
       else { S.msg.dlg = { ok: false, text: res.message }; render(); }
     } else if (kind === 'lembrete') {
       const res = await api.saveLembrete(data);
