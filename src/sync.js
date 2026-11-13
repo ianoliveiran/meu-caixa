@@ -73,7 +73,7 @@ async function syncAll(db, client, onProgress) {
         rec.consentExpiresAt = item.consentExpiresAt || (item.consents && item.consents[0] && item.consents[0].expiresAt) || rec.consentExpiresAt || null;
         rec.error = item.error && item.error.message ? item.error.message : null;
       } catch (e) {
-        if (e.status === 404) throw new Error('não encontrei essa conexão na Pluggy. Confira o código');
+        if (e.status === 404) throw new Error('a Pluggy não achou esse Item ID com o seu Client ID. Ele precisa ser copiado do Demo da mesma aplicação de onde vieram o Client ID e o Client Secret (e é o código do MeuPluggy, não do site meu.pluggy.ai)');
         // Algumas contas pessoais não liberam os detalhes da conexão; seguimos com as contas.
         rec.status = rec.status || null;
       }
@@ -125,7 +125,7 @@ async function syncAll(db, client, onProgress) {
       rec.error = rec.error || null;
     } catch (e) {
       rec.error = e.message;
-      errors.push((it.label || rec.connectorName || 'Um banco') + ': ' + e.message);
+      errors.push((it.label || rec.connectorName || 'Banco ' + String(it.id).slice(0, 8)) + ': ' + e.message);
     }
     db.items[it.id] = rec;
   }

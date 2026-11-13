@@ -264,6 +264,7 @@ const actions = {
     if (!/^[0-9a-f-]{20,60}$/i.test(id)) return { result: { ok: false, message: 'Esse código não parece um Item ID da Pluggy. Ele tem letras, números e hífens, como 1a2b3c4d-....' } };
     const items = db.settings.items || [];
     if (items.some((x) => x.id === id)) return { result: { ok: false, message: 'Esse banco já está na lista.' } };
+    if (!String(label || '').trim()) return { result: { ok: false, message: 'Escreva o nome do banco (Nubank, Itaú, Inter...). Ele aparece no cartão e nos avisos.' } };
     items.push({ id, label: String(label || '').trim().slice(0, 40) });
     db.settings.items = items;
     return { result: { ok: true }, changed: true };
