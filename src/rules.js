@@ -328,6 +328,11 @@ function buildModel(db, opts) {
   const now = (opts && opts.now) ? toDate(opts.now) : new Date();
   const mk = (opts && opts.month) || monthKey(now);
   const settings = db.settings || {};
+  // Créditos fora do banco (como o do iFood) só entram quando o recurso está ligado.
+  // Sem escolha salva, fica ligado só para quem já tem um crédito cadastrado.
+  const credOpt = ((db.settings || {}).features || {}).creditos;
+  const credOn = credOpt === undefined ? (db.manual || []).some((x) => x.tipo === 'credito') : !!credOpt;
+  const manualAll = credOn ? (db.manual || []) : (db.manual || []).filter((x) => x.tipo !== 'credito');
   // Contas de um banco que foi removido continuam guardadas ("arquivada") só para o histórico.
   const allAccounts = Object.values(db.accounts || {});
   const accounts = allAccounts.filter((a) => !a.arquivada);
@@ -376,7 +381,7 @@ function buildModel(db, opts) {
   }
   all.sort((a, b) => b.date - a.date || Math.abs(b.value) - Math.abs(a.value));
   pairPass(all, ctx);
-  for (const x of (db.manual || []).filter((y) => y.tipo === 'credito')) {
+  for (const x of manualAll.filter((y) => y.tipo === 'credito')) {
     for (const c of (x.compras || [])) {
       const d = toDate(c.data);
       all.push({
@@ -427,7 +432,7 @@ function buildModel(db, opts) {
   // ----- Cartões -----
   const cardAccounts = accounts.filter((a) => a.type === 'CREDIT');
   const cards = cardAccounts.map((acc) => buildCard(acc, all, db, mk, now, bankNameOf(acc)))
-    .concat((db.manual || []).filter((x) => x.tipo === 'credito').map((x) => manualCard(x, now, db)));
+    .concat(manualAll.filter((x) => x.tipo === 'credito').map((x) => manualCard(x, now, db)));
 
   // ----- Contas a pagar -----
   const used = new Set();
@@ -457,7 +462,7 @@ function buildModel(db, opts) {
         auto: true
       };
     });
-  const manualCredits = (db.manual || []).filter((x) => x.tipo === 'credito');
+  const manualCredits = manualAll.filter((x) => x.tipo === 'credito');
   const manualBills = manualCredits.filter((x) => !x.inicio || x.inicio <= mk).filter(() => mk >= monthKey(now)).map((x) => {
     const mark = ((db.billMarks || {})[mk] || {})['manual:' + x.id];
     return {
@@ -611,7 +616,7 @@ function buildModel(db, opts) {
     },
     categorias, totalGasto, pixCredito,
     compras, lancamentos, novas, avisos,
-    features: insights.features,
+    features: Object.assign({}, insights.features, { creditos: credOn }),
     historico: insights.historico || null,
     metas: insights.metas || null,
     limites: insights.limites || null,
@@ -622,8 +627,8 @@ function buildModel(db, opts) {
     lembretes: insights.lembretes || null,
     fixados: insights.fixados || [],
     bancos,
-    manual: (db.manual || []).filter((x) => x.tipo !== 'credito').map((x) => Object.assign({}, x)),
-    manualCredits: (db.manual || []).filter((x) => x.tipo === 'credito').map((x) => {
+    manual: manualAll.filter((x) => x.tipo !== 'credito').map((x) => Object.assign({}, x)),
+    manualCredits: manualAll.filter((x) => x.tipo === 'credito').map((x) => {
       const cut = manualPaidCutoff(x, db);
       const gastoAtual = manualGasto(x, db);
       return Object.assign({}, x, {

@@ -413,7 +413,7 @@
         (m.pixAno && m.pixAno.qtd ? '<div class="tiles"><div>' + tile('pix') + '<div><span>Pix no crédito no ano</span><b>' + brl(m.pixAno.total) + '</b></div></div><div>' + tile('taxas') + '<div><span>Taxas no ano</span><b style="color:var(--red-fg)">' + brl(m.pixAno.taxas) + '</b></div></div></div>' : '') +
         '<span class="sub">As taxas são as linhas de juros, IOF e tarifa que aparecem nas faturas dos cartões.</span></section>'
       : (m.pixAno && m.pixAno.qtd ? '<section class="panel" aria-label="Pix no crédito no ano"><div class="head"><div><h2 class="h2">Pix no crédito em ' + m.pixAno.ano + '</h2><span class="sub">' + m.pixAno.qtd + ' Pix no crédito no ano</span>' + bigNum(m.pixAno.total) + '</div>' + ill.lightning + '</div><div class="tiles"><div>' + tile('taxas') + '<div><span>Taxas e juros no ano</span><b style="color:var(--red-fg)">' + brl(m.pixAno.taxas) + '</b></div></div></div></section>' : '');
-    return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + ((m.features || {}).lembretes && m.lembretes ? lembretesPanel(m) : '') + pixPanel + manualPanel + '</div>';
+    return '<div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:20px">' + ((m.features || {}).lembretes && m.lembretes ? lembretesPanel(m) : '') + pixPanel + ((m.features || {}).creditos ? manualPanel : '') + '</div>';
   }
 
   function fixadosPanel(m) {
@@ -537,6 +537,7 @@
     ['compras', 'Compras e entradas novas', 'Quando os bancos atualizarem, um aviso com o que entrou e saiu.'],
     ['contas', 'Contas vencendo', 'Na véspera e no dia do vencimento, de manhã. E se passar do dia sem aparecer paga.'],
     ['limites', 'Limites por categoria', 'Quando chegar em 80% e quando passar do limite.'],
+    ['creditos', 'Créditos fora do banco', 'Para créditos que não vêm pelo Open Finance, como o do iFood: você lança as compras e acompanha o limite.'],
     ['lembretes', 'Lembretes', 'No dia do lembrete, de manhã.'],
     ['alertas', 'Gastos fora do normal', 'Compra bem acima do costume, cobrança repetida ou assinatura que ficou mais cara.'],
     ['resumo', 'Resumo do mês', 'No começo do mês, como foi o mês que fechou.']

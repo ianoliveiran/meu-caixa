@@ -5,7 +5,7 @@
 
 const FEATURE_DEFAULTS = {
   metas: true, limites: true, parcelas: true, assinaturas: true, alertas: true,
-  pixAno: true, resumo: true, grafico: true, lembretes: true
+  pixAno: true, resumo: true, grafico: true, lembretes: true, creditos: false
 };
 
 const DAY = 86400000;

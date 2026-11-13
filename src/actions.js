@@ -71,6 +71,12 @@ async function runSync(db, env) {
 // Cada ação devolve { result, changed }. "changed" diz se precisa gravar o banco.
 const actions = {
   'model:get': async (db, month, env) => {
+    let migrou = false;
+    // Quem já tinha um crédito cadastrado (como o do iFood) continua vendo; para os outros, vem desligado.
+    if (!db.settings.features || db.settings.features.creditos === undefined) {
+      db.settings.features = Object.assign({}, db.settings.features || {}, { creditos: (db.manual || []).some((x) => x.tipo === 'credito') });
+      migrou = true;
+    }
     const m = buildModel(db, { month: /^\d{4}-\d{2}$/.test(month || '') ? month : undefined });
     const configured = !!(db.secrets && db.secrets.clientId);
     m.sync.syncing = false;
@@ -80,7 +86,7 @@ const actions = {
     m.sync.autoStartAvailable = false;
     m.sync.web = true;
     m.sync.stale = configured && !db.settings.demo && m.sync.hasItems && (!db.lastSync || (Date.now() - new Date(db.lastSync)) > STALE_MS);
-    const migrou = Array.isArray(db.chat) && db.chat.length > 0;
+    if (Array.isArray(db.chat) && db.chat.length > 0) migrou = true;
     const chats = assistant.migrateChats(db);
     const atual = chats.find((c) => c.id === db.chatAtual) || null;
     m.ai = {
