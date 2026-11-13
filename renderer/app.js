@@ -770,7 +770,7 @@
         '<section class="panel"><h2 class="h2">1. Conectar a Pluggy</h2>' +
         (configured && !S.editSecrets
           ? '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px"><span class="good">' + icon('check', 14, 2) + (m.sync.web ? 'Credenciais salvas e criptografadas no servidor' : 'Credenciais salvas e criptografadas neste PC') + '</span><button type="button" class="link" data-act="edit-secrets">Trocar credenciais</button></div>'
-          : '<ol class="steps"><li>Crie sua conta em <button type="button" class="link" data-act="ext" data-v="https://meu.pluggy.ai">meu.pluggy.ai</button> e conecte cada banco (Itaú, Inter, Nubank, Caixa, Mercado Pago). O próprio banco pede a autorização no app dele.</li>' +
+          : '<ol class="steps"><li>Crie sua conta em <button type="button" class="link" data-act="ext" data-v="https://meu.pluggy.ai">meu.pluggy.ai</button> e conecte cada banco que você usa. O próprio banco pede a autorização no app dele.</li>' +
             '<li>No <button type="button" class="link" data-act="ext" data-v="https://dashboard.pluggy.ai">dashboard.pluggy.ai</button>, crie uma aplicação, adicione o conector MeuPluggy e copie o Client ID e o Client Secret.</li>' +
             '<li>Cole os dois aqui. ' + (m.sync.web ? 'Eles ficam guardados criptografados no servidor e nunca voltam para o navegador.' : 'Eles ficam guardados só neste PC, criptografados pelo Windows.') + '</li></ol>' + secretsForm) +
         msg('secrets') + '</section>' +
@@ -779,7 +779,7 @@
         '<form data-form="item" class="form"><div class="field"><label for="iid">Item ID</label><input id="iid" name="id" autocomplete="off" spellcheck="false" placeholder="1a2b3c4d-..."></div>' +
         '<div class="field"><label for="ilabel">Nome do banco</label><input id="ilabel" name="label" placeholder="Nubank"></div>' +
         '<div class="field" style="justify-content:flex-end"><button class="btn primary" type="submit">Adicionar banco</button></div></form>' + msg('item') +
-        '<span class="sub">O plano gratuito permite até 5 conexões. Itaú, Inter, Nubank, Caixa e Mercado Pago ocupam as 5.</span></section>') +
+        '<span class="sub">O plano gratuito permite até 5 bancos conectados.</span></section>') +
 
       '<section class="panel"><h2 class="h2">Seu mês</h2>' +
       '<form data-form="settings" class="form">' +
