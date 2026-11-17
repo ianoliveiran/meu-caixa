@@ -374,9 +374,7 @@ function buildModel(db, opts) {
       pending: tx.status === 'PENDING',
       sumiu: !!tx.sumiuEm,
       arquivada: !!acc.arquivada,
-      inst: tx.creditCardMetadata && tx.creditCardMetadata.totalInstallments > 1
-        ? { n: tx.creditCardMetadata.installmentNumber || 1, total: tx.creditCardMetadata.totalInstallments }
-        : null
+      inst: instOf(tx)
     });
   }
   all.sort((a, b) => b.date - a.date || Math.abs(b.value) - Math.abs(a.value));
@@ -518,7 +516,7 @@ function buildModel(db, opts) {
   const label = (t) => ({
     id: t.id,
     data: fmtDay(t.date),
-    nome: t.description + (t.inst ? ', ' + t.inst.n + ' de ' + t.inst.total : ''),
+    nome: t.description + (t.inst && !/\bparc/i.test(t.description) ? ', ' + t.inst.n + ' de ' + t.inst.total : ''),
     cat: t.cat,
     catLabel: (CATS[t.cat] || CATS.outros).label,
     conta: t.bank + (t.isCard ? ' crédito' : ' conta'),
@@ -773,8 +771,17 @@ function shiftMonth(date, n) {
 // - Faturas fechadas: total e pagamentos vêm do banco (quando ele manda).
 // - Fatura atual: o saldo devedor do cartão, que já desconta o que você antecipou.
 // - Faturas antigas que o banco não mandou: o valor pago no cartão perto do vencimento.
+// Parcela: o banco manda no campo próprio ou, em alguns (Nubank), só no texto ("Parcela 1/2", "Parc 1 de 3").
+function instOf(tx) {
+  const m = tx.creditCardMetadata;
+  if (m && m.totalInstallments > 1) return { n: m.installmentNumber || 1, total: m.totalInstallments };
+  const r = /\bparc(?:ela)?s?\.?\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})\b/i.exec(String(tx.description || ''));
+  if (r && +r[2] > 1 && +r[1] >= 1 && +r[1] <= +r[2]) return { n: +r[1], total: +r[2] };
+  return null;
+}
+
 function normKey(x) {
-  return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b\d+\s*(de|\/)\s*\d+\b/g, '').trim();
+  return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b\d+\s*(de|\/)\s*\d+\b/g, ' ').replace(/\bparc(ela)?s?\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function buildCard(acc, all, db, mk, now, nome) {

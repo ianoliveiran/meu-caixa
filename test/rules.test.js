@@ -236,6 +236,19 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
       const jan = nu.prox.find((p) => p.key === '2027-01');
       assert.ok(jan && Math.abs(jan.valor - 68.29) < 0.01, 'janeiro: ' + JSON.stringify(nu.prox));
     }
+    // Nubank que só escreve a parcela no texto
+    {
+      const d = mk(false);
+      d.transactions.c.creditCardMetadata = null;
+      d.transactions.c.description = 'Loja X - Parcela 1/2';
+      const nu = buildModel(d, { now: N }).cards.find((c) => c.nome === 'Nubank');
+      assert.strictEqual(nu.atual.valor, 490.77, 'parcela no texto: ' + nu.atual.valor);
+      assert.ok(nu.prox.some((p) => p.key === '2027-01' && Math.abs(p.valor - 68.29) < 0.01), 'janeiro pelo texto: ' + JSON.stringify(nu.prox));
+      // e quando a parcela 2/2 já veio, não conta duas vezes
+      d.transactions.e = Object.assign({}, d.transactions.c, { id: 'e', date: '2027-01-02T12:00:00Z', description: 'Loja X - Parcela 2/2' });
+      const nu2 = buildModel(d, { now: N }).cards.find((c) => c.nome === 'Nubank');
+      assert.ok(nu2.prox.some((p) => p.key === '2027-01' && Math.abs(p.valor - 68.29) < 0.01), 'janeiro sem dobrar: ' + JSON.stringify(nu2.prox));
+    }
     // Banco que só manda o limite em uso (sem fatura recente): as parcelas futuras saem da conta.
     for (const futuraLancada of [true, false]) {
       const d = mk(futuraLancada);
