@@ -697,7 +697,8 @@
       (c.manual ? '<button type="button" class="btn small rose" style="align-self:flex-start" data-act="dlg-credit" data-v="' + esc(c.manualId) + '">' + icon('pencil', 14) + 'Atualizar gasto e limite</button>'
         : '<span class="sub">' + (c.parceladas ? c.parceladas + (c.parceladas === 1 ? ' compra parcelada em andamento.' : ' compras parceladas em andamento.') : '') + (c.atual.fonte ? (c.parceladas ? ' ' : '') + 'Como calculei: ' + esc(c.atual.fonte) + '. O banco atualiza uma vez por dia.' : '') + '</span>') + '</section>').join('') + '</div>' +
       ((m.features || {}).parcelas && m.parcelas ? parcelasPanel(m) : '') +
-      '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:4px"><h2 class="h2">Total que falta pagar nos cartões</h2><span class="sub">Soma da fatura mostrada em cada cartão, já descontado o que você antecipou.</span></div><span class="big">' + brl(m.cardsTotal) + '</span></section>';
+      '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div style="display:flex;flex-direction:column;gap:4px"><h2 class="h2">Total que falta pagar nos cartões</h2><span class="sub">Soma da fatura mostrada em cada cartão, já descontado o que você antecipou.</span></div><span class="big">' + brl(m.cardsTotal) + '</span></section>' +
+      (api.diagCartoes && m.cards.some((c) => !c.manual) ? '<div style="display:flex;justify-content:center"><button type="button" class="btn small" data-act="diag">' + icon('down', 14, 2) + 'Baixar dados dos cartões para conferir</button></div>' : '');
   }
 
   // ---------- Contas a pagar ----------
@@ -1116,6 +1117,21 @@
         const g = (S.m.settings.metas || []).find((x) => x.id === v);
         S.dialog = { type: 'confirm', title: 'Apagar a meta ' + (g ? g.nome : '') + '?', text: 'Só a meta some. Seu dinheiro e seus lançamentos continuam iguais.', yes: 'Apagar', run: () => api.removeMeta(v) };
         render(); break;
+      }
+      case 'diag': {
+        el.disabled = true;
+        try {
+          const d = await api.diagCartoes();
+          const blob = new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'cartoes-' + new Date().toISOString().slice(0, 10) + '.json';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          toast('Arquivo baixado. Ele tem os seus lançamentos dos cartões: mande só para quem você quiser.');
+        } catch (err) { toast('Não deu para baixar: ' + err.message); }
+        el.disabled = false;
+        break;
       }
       case 'csv': {
         const rows = S.lancRows || [];

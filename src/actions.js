@@ -102,6 +102,26 @@ const actions = {
     return { result: m, changed: migrou };
   },
 
+  // Dados crus dos cartões, para conferir o cálculo da fatura. Só leitura; não leva chaves nem senhas.
+  'diag:cartoes': async (db) => {
+    const desde = Date.now() - 150 * 86400000;
+    const out = { geradoEm: new Date().toISOString(), lastSync: db.lastSync || null, cartoes: [] };
+    for (const acc of Object.values(db.accounts || {})) {
+      if (acc.type !== 'CREDIT' || acc.arquivada) continue;
+      const item = (db.items || {})[acc.itemId] || {};
+      out.cartoes.push({
+        banco: ((db.settings.items || []).find((i) => i.id === acc.itemId) || {}).label || item.connectorName || null,
+        conta: Object.assign({}, acc, { number: acc.number ? '…' + String(acc.number).slice(-4) : null, owner: undefined, taxNumber: undefined }),
+        faturas: (db.billsByAccount || {})[acc.id] || [],
+        lancamentos: Object.values(db.transactions || {})
+          .filter((t) => t.accountId === acc.id && new Date(t.date) >= desde)
+          .map((t) => Object.assign({}, t, { paymentData: undefined }))
+          .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      });
+    }
+    return { result: out, changed: false };
+  },
+
   'sync:now': async (db, arg, env) => {
     const r = await runSync(db, env);
     return { result: r, changed: !!r.changed };
