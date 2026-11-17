@@ -261,5 +261,44 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
     }
   });
 
+  await test('Nubank com NuPay e compra jogada para janeiro: usa o mês de fatura que o banco manda', () => {
+    const N = new Date(2026, 10, 16, 21, 0);
+    const d = emptyDb();
+    d.settings.items = [{ id: 'it', label: 'Nubank' }];
+    d.items = { it: { id: 'it', connectorName: 'MeuPluggy', status: 'UPDATED' } };
+    d.accounts = { cc: { id: 'cc', itemId: 'it', type: 'CREDIT', subtype: 'CREDIT_CARD', number: '4186', balance: 199.51,
+      creditData: { creditLimit: 200, availableCreditLimit: 0.49, disaggregatedCreditLimits: [
+        { lineName: 'CREDITO_A_VISTA', usedAmount: 199.51, limitAmount: 200 },
+        { lineName: 'OUTROS', usedAmount: 359.55, limitAmount: 359.5547, lineNameAdditionalInfo: 'Limite Nupay' }] } } };
+    d.billsByAccount = { cc: [
+      { id: 'b-out', dueDate: '2026-10-02T00:00:00.000Z', billClosingDate: '2026-09-25T00:00:00.000Z', totalAmount: 349.7382, payments: [{ amount: 349.74, paymentDate: '2026-09-25T00:00:00.000Z' }] },
+      { id: 'b-nov', dueDate: '2026-11-03T00:00:00.000Z', billClosingDate: '2026-10-26T00:00:00.000Z', totalAmount: 304.3979, payments: [{ amount: 304.4, paymentDate: '2026-10-29T00:00:00.000Z' }] }] };
+    const tx = (id, date, desc, amount, cat, fc, billId) => ({ id, accountId: 'cc', date, description: desc, type: amount < 0 ? 'CREDIT' : 'DEBIT', amount, status: billId ? 'POSTED' : 'PENDING', category: cat,
+      creditCardMetadata: Object.assign({ billForecastDate: fc, paymentType: 'SINGLE' }, billId ? { billId } : {}), createdAt: '2026-11-11T22:33:55.077Z' });
+    const lista = [
+      ['1', '2026-11-14T20:29:27Z', 'iFood', 68.29, 'Food delivery', '2027-01'],
+      ['2', '2026-11-05T23:20:41Z', 'Minaslanches', 46, 'Eating out', '2026-12'],
+      ['3', '2026-11-03T00:00:00Z', 'Estorno de EBW*Canva - NuPay', -35, 'Digital services', '2026-12'],
+      ['4', '2026-10-30T22:14:18Z', 'Mp *Melimais', 39.9, 'Shopping', '2026-12'],
+      ['5', '2026-10-30T21:05:13Z', 'Amazon Prime Canais', 34.9, 'Digital services', '2026-12'],
+      ['6', '2026-10-30T18:20:15Z', '99Food', 32.7, 'Food delivery', '2026-12'],
+      ['7', '2026-10-30T12:09:55Z', 'EBW*Canva', 35, 'Digital services', '2026-12'],
+      ['8', '2026-10-29T23:27:37Z', 'Mp *77burger', 46, 'Shopping', '2026-12'],
+      ['9', '2026-10-29T22:59:50Z', 'Pagamento recebido', -304.4, 'Credit card payment', '2026-12'],
+      ['10', '2026-09-27T00:48:17Z', 'Anota Ai', 49.42, 'Transfers', '2026-12'],
+      ['11', '2026-09-26T21:36:24Z', 'Anota Ai', 88.08, 'Transfers', '2026-12'],
+      ['12', '2026-09-25T21:44:03Z', 'iFood', 153.78, 'Food delivery', '2026-12'],
+      ['13', '2026-09-27T14:21:14Z', 'Openai *Chatgpt Subscr', 19.23, 'Digital services', '2026-11', 'b-nov'],
+      ['14', '2026-09-25T12:09:27Z', 'Pagamento recebido', -349.74, 'Credit card payment', '2026-11', 'b-nov']
+    ];
+    d.transactions = {};
+    for (const x of lista) d.transactions[x[0]] = tx(...x);
+    const nu = buildModel(d, { now: N }).cards.find((c) => c.nome === 'Nubank');
+    assert.strictEqual(nu.atual.valor, 490.78, 'dezembro: ' + nu.atual.valor + ' · ' + nu.atual.fonte);
+    assert.strictEqual(nu.atual.vence, '03/12');
+    const jan = nu.prox.find((p) => p.key === '2027-01');
+    assert.ok(jan && Math.abs(jan.valor - 68.29) < 0.01, 'janeiro: ' + JSON.stringify(nu.prox));
+  });
+
   console.log('\n' + passed + ' testes passaram');
 })();

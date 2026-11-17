@@ -852,9 +852,13 @@ function buildCard(acc, all, db, mk, now, nome) {
     return c;
   };
   const billById = new Map(bills.map((b) => [b.id, b]));
+  // Mês da fatura que o próprio banco previu para o lançamento (billForecastDate, "2026-12"). Vale também para o NuPay.
+  const fcOf = (t) => { const f = t.raw.creditCardMetadata && t.raw.creditCardMetadata.billForecastDate; return /^\d{4}-\d{2}$/.test(f || '') ? f : null; };
   const billMonthOf = (t) => {
     const bid = t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId;
     if (bid && billById.has(bid)) return monthKey(billById.get(bid).due);
+    const f = fcOf(t);
+    if (f) return f;
     if (t.inst && t.inst.n > 1) return monthKey(t.date);
     return monthKey(dueOfClosing(closingFor(t.date)));
   };
@@ -888,7 +892,23 @@ function buildCard(acc, all, db, mk, now, nome) {
       futuras[mkF] = (futuras[mkF] || 0) + Math.abs(t.value);
     }
   }
-  if (lastClosing && dayDiff(today, lastClosing) <= 35) {
+  // 0) O banco diz em que fatura cai cada lançamento (inclusive NuPay e compras jogadas para depois).
+  //    Usa isso quando bate com o total que o banco diz estar em uso no cartão.
+  let previsao = null;
+  if (txs.some((t) => fcOf(t) && fcOf(t) >= openMonth)) {
+    const doMes = txs.filter((t) => billMonthOf(t) === openMonth && !(t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId && billIds.has(t.raw.creditCardMetadata.billId)));
+    const compras = doMes.filter((t) => ['expense', 'pix_credit', 'fee'].includes(t.kind)).reduce((s, t) => s + Math.abs(t.value), 0);
+    const estornos = doMes.filter((t) => t.kind === 'refund').reduce((s, t) => s + t.value, 0);
+    const pagos = doMes.filter((t) => t.kind === 'card_payment_in' && !isBillPayment(t)).reduce((s, t) => s + t.value, 0);
+    const valor = round2(Math.max(0, compras - estornos - pagos + projAberta));
+    const depois = Object.entries(porFatura).filter(([k]) => k > openMonth).reduce((s2, [, v]) => s2 + v, 0);
+    const alvo = usadoLimite + extraLinhas - restoFechada;
+    if (Math.abs(valor + depois - alvo) <= Math.max(30, alvo * 0.05)) previsao = valor;
+  }
+  if (previsao !== null) {
+    abertaValor = previsao;
+    fonte = 'Lançamentos que o banco marcou para esta fatura' + (extraLinhas > 0 ? ', inclusive os do NuPay' : '') + (projAberta > 0.005 ? ' + ' + fmtMoney(projAberta) + ' de parcelas que o banco ainda vai lançar' : '') + '; o que ele marcou para os meses seguintes aparece neles';
+  } else if (lastClosing && dayDiff(today, lastClosing) <= 35) {
     const abertas = txs.filter((t) => dayStart(t.date) > lastClosing && billMonthOf(t) === openMonth && !(t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId && billIds.has(t.raw.creditCardMetadata.billId)));
     const compras = abertas.filter((t) => ['expense', 'pix_credit', 'fee'].includes(t.kind)).reduce((s, t) => s + Math.abs(t.value), 0);
     const estornos = abertas.filter((t) => t.kind === 'refund').reduce((s, t) => s + t.value, 0);
