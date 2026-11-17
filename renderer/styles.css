@@ -48,6 +48,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .brand b { display: block; }
 .brand small { color: var(--muted); font-size: 12px; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
+.nav .lbl-s { display: none; }
 .nav-label { font-size: 12px; color: var(--muted); padding: 0 10px 6px; }
 .nav a { text-decoration: none; color: inherit; }
 .nav button, .nav a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 12px; background: transparent; text-align: left; font-weight: 500; }

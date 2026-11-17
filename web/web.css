@@ -12,13 +12,42 @@ body { padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) en
 
 @media (max-width: 760px) {
   .app { padding: 10px; gap: 10px; }
-  .side { flex-basis: 100%; padding: 10px; gap: 10px; flex-direction: row; flex-wrap: wrap; align-items: center; border-radius: 16px; }
-  .side .brand small, .side .nav-label, .side .side-foot { display: none; }
-  .side .brand { padding: 0 4px; }
-  .side .nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 4px; flex: 1 1 100%; scrollbar-width: none; }
-  .side .nav::-webkit-scrollbar { display: none; }
-  .side .nav button, .side .nav a { flex: 0 0 auto; min-height: 40px; padding: 0 12px; font-size: 13px; }
-  .side > .nav + .nav { display: none; }
+  /* Celular: menu fixo embaixo, com todas as telas (inclusive Ajustes), sem rolar para o lado. */
+  .app { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .side { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; flex-direction: row; gap: 0; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); border-radius: 0; border-width: 1px 0 0; box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08); }
+  .side .brand, .side .nav-label, .side .side-foot { display: none; }
+  .side .nav { display: contents; }
+  .side .nav a { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: 3px; min-height: 52px; padding: 4px 0; border-radius: 12px; font-size: 10.5px; font-weight: 600; text-align: center; }
+  .side .nav a .lbl { display: none; }
+  .side .nav a .lbl-s { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side .nav a.on { background: var(--blue-soft); color: var(--blue-d); }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Lançamentos: cada linha vira um cartãozinho, sem tabela larga. */
+  .table-wrap { overflow: visible; }
+  .table-wrap table, .table-wrap tbody { display: block; width: 100%; min-width: 0; }
+  .table-wrap thead { display: none; }
+  .table-wrap tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .table-wrap td { display: block; padding: 0 !important; border: 0; width: auto; }
+  .table-wrap tr > td:nth-child(1) { flex: 1 1 0; min-width: 0; }
+  .table-wrap tr > td:nth-child(5) { flex: 0 0 auto; text-align: right; }
+  .table-wrap tr > td:nth-child(3) { order: 3; }
+  .table-wrap tr > td:nth-child(2) { order: 4; font-size: 12px; }
+  .table-wrap tr > td:nth-child(4) { order: 5; font-size: 12px; color: var(--muted); flex: 1 1 0; min-width: 0; overflow: hidden; }
+  .table-wrap tr > td:nth-child(4) > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important; }
+  .table-wrap tr > td:nth-child(4) .dot { display: none; }
+  .table-wrap tr > td:nth-child(3) .pill { padding: 3px 8px; font-size: 11px; }
+  .table-wrap tr > td:nth-child(6) { order: 6; margin-left: auto; width: auto !important; flex: 0 0 auto; }
+  .table-wrap td.fix-cell .icon-btn { width: 34px; height: 34px; }
+  .table-wrap tr > td:nth-child(5) ~ td:nth-child(6) { display: flex; }
+  .table-wrap tr::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+  .table-wrap tr.grp { display: block; padding: 10px 8px; }
+  .table-wrap tr.grp td { display: block; }
+  .table-wrap td select { max-width: 160px; }
+
+  /* Cartões: os meses quebram em linhas em vez de rolar para o lado. */
+  .months { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; overflow: visible; }
+  .mbox b { font-size: 12px !important; }
   .main { flex-basis: 100%; gap: 12px; }
   .top-bar { padding: 8px 10px; border-radius: 16px; }
   .top-bar h1 { font-size: 20px; }

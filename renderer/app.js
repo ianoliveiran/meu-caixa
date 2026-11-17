@@ -136,7 +136,8 @@
   ];
 
   function sidebar(m) {
-    const navBtn = ([id, label, ic]) => '<a href="#' + id + '" data-act="nav" data-v="' + id + '" class="' + (S.screen === id ? 'on' : '') + '"' + (S.screen === id ? ' aria-current="page"' : '') + '>' + icon(ic) + label + '</a>';
+    const curto = { visao: 'Início', ia: 'Chat', lanc: 'Extrato', cartoes: 'Cartões', contas: 'Contas', fixas: 'Fixas', bancos: 'Ajustes' };
+    const navBtn = ([id, label, ic]) => '<a href="#' + id + '" data-act="nav" data-v="' + id + '" class="' + (S.screen === id ? 'on' : '') + '"' + (S.screen === id ? ' aria-current="page"' : '') + ' aria-label="' + label + '">' + icon(ic) + '<span class="lbl">' + label + '</span><span class="lbl-s" aria-hidden="true">' + (curto[id] || label) + '</span></a>';
     let box;
     if (S.syncing) {
       const p = S.progress;
