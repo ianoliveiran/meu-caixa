@@ -98,6 +98,7 @@ const actions = {
     };
     const pp = push.ensure(db);
     m.push = { prefs: push.prefs(db), aparelhos: pp.subs.map((x) => ({ endpoint: x.endpoint, device: x.device, criado: x.criado })) };
+    m.aberto = !!db.settings.aberto;
     m.cats = Object.entries(CATS).filter(([k]) => k !== 'fatura').map(([k, v]) => ({ id: k, label: v.label }));
     return { result: m, changed: migrou };
   },
@@ -307,6 +308,7 @@ const actions = {
 
   'settings:save': async (db, patch = {}) => {
     const s = db.settings;
+    if ('aberto' in patch) { if (patch.aberto) s.aberto = true; else delete s.aberto; }
     const fail = (message) => ({ result: { ok: false, message } });
     if ('salario' in patch) { const v = parseMoney(patch.salario); if (!(v >= 0)) return fail('O salário precisa ser um valor, como 6.500,00.'); s.salario = v; }
     if ('investir' in patch) { const v = parseMoney(patch.investir); if (!(v >= 0)) return fail('O investimento precisa ser um valor, como 500,00. Use 0 se não for investir.'); s.investir = v; }

@@ -37,7 +37,9 @@ function dec(value) {
   try { return decBuf(String(value).slice(4)).toString('utf8'); } catch (e) { return ''; }
 }
 
+// Quem ligou "dados abertos para conferência" grava sem a camada de fora (as chaves da Pluggy e da OpenAI continuam trancadas).
 function seal(db) {
+  if (db && db.settings && db.settings.aberto === true) return db;
   return { v: 1, enc: encBuf(zlib.gzipSync(Buffer.from(JSON.stringify(db), 'utf8'))) };
 }
 

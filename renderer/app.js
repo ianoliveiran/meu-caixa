@@ -798,6 +798,9 @@
       (m.sync.web ? featuresPanel(m) : '') +
       (m.sync.web ? '<section class="panel"><h2 class="h2">Trazer do app de Windows</h2><span class="sub">Escolha o arquivo meu-caixa.json do app de Windows. Vêm junto bancos, lançamentos, despesas fixas, regras de categoria e o crédito do iFood. A chave da Pluggy não vem: cole aqui de novo.</span>' +
         '<label class="btn small" style="align-self:flex-start;cursor:pointer">' + icon('down', 14, 2) + 'Escolher arquivo<input type="file" id="importar" accept=".json,application/json" hidden></label>' + msg('import') + '</section>' +
+        '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px"><div style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 240px"><h2 class="h2">Criptografia dos dados</h2><span class="sub">' +
+        (m.aberto ? '<b style="color:var(--rose)">Desligada.</b> Seus lançamentos estão legíveis no Supabase para conferência. As chaves da Pluggy e da OpenAI continuam trancadas. Ligue de novo quando terminar.' : 'Ligada. Ninguém que abra o Supabase consegue ler seus dados. Desligue só se for preciso conferir os dados, e ligue de novo depois.') + '</span></div>' +
+        '<button type="button" class="btn small' + (m.aberto ? ' primary' : '') + '" data-act="aberto" data-v="' + (m.aberto ? '0' : '1') + '">' + (m.aberto ? 'Ligar de novo' : 'Desligar por enquanto') + '</button></section>' +
         '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><h2 class="h2">Sua conta</h2><span class="sub">' + esc(api.email ? api.email() : '') + '</span></div><button type="button" class="btn small" data-act="logout">Sair desta conta</button></section>' : '') +
       '<section class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px"><div><h2 class="h2">Aparência</h2><span class="sub">Vale só para este aparelho.</span></div><div class="chips" role="radiogroup" aria-label="Aparência">' +
         [['auto', 'Automático'], ['claro', 'Claro'], ['escuro', 'Escuro']].map(([k, l]) => '<button type="button" class="chip' + (S.tema === k ? ' on' : '') + '" role="radio" aria-checked="' + (S.tema === k) + '" data-act="tema" data-v="' + k + '">' + l + '</button>').join('') + '</div></section>' +
@@ -1131,6 +1134,11 @@
           toast('Arquivo baixado. Ele tem os seus lançamentos dos cartões: mande só para quem você quiser.');
         } catch (err) { toast('Não deu para baixar: ' + err.message); }
         el.disabled = false;
+        break;
+      }
+      case 'aberto': {
+        await run(api.saveSettings({ aberto: v === '1' }), 'cripto');
+        toast(v === '1' ? 'Criptografia desligada. Lembre de ligar de novo.' : 'Criptografia ligada de novo.');
         break;
       }
       case 'csv': {
