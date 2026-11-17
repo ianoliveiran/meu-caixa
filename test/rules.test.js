@@ -40,7 +40,7 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
     const itau = m.cards.find((c) => c.nome === 'Itaú');
     assert.strictEqual(itau.atual.estado, 'Fechada');
     assert.strictEqual(itau.atual.valor, 650.4);
-    assert.strictEqual(itau.prox[1].estado, 'Paga');
+    assert.strictEqual(itau.prox[itau.prox.findIndex((p) => p.atual) - 1].estado, 'Paga');
   });
 
   await test('crédito à mão vira cartão e conta a pagar a partir do mês de início', () => {
@@ -208,6 +208,44 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
     txs = [{ id: 'n1', date: '2026-11-07T12:00:00Z', description: 'Farmacia', type: 'DEBIT', amount: -30, status: 'POSTED' }];
     await sa(d, cl);
     assert.ok(!d.transactions.c && d.transactions.n1, 'reconectar não duplica');
+  });
+
+  await test('fatura do mês e parcelas das próximas: cada parcela cai na fatura dela', () => {
+    const N = new Date(2026, 10, 16, 21, 0);
+    const mk = (pending) => {
+      const d = emptyDb();
+      d.settings.items = [{ id: 'it', label: 'Nubank' }];
+      d.items = { it: { id: 'it', connectorName: 'MeuPluggy', status: 'UPDATED' } };
+      d.accounts = { cc: { id: 'cc', itemId: 'it', type: 'CREDIT', subtype: 'CREDIT_CARD', number: '5998', balance: 559.06,
+        creditData: { creditLimit: 2000, availableCreditLimit: 1440.94 } } };
+      d.billsByAccount = { cc: [{ id: 'b-nov', dueDate: '2026-11-08T12:00:00Z', billClosingDate: '2026-11-01T12:00:00Z', totalAmount: 300, payments: [{ amount: 300, paymentDate: '2026-11-07T12:00:00Z' }] }] };
+      const tx = (id, date, desc, amount, inst) => ({ id, accountId: 'cc', date, description: desc, type: 'DEBIT', amount, status: 'POSTED', category: 'Shopping',
+        creditCardMetadata: inst ? { installmentNumber: inst[0], totalInstallments: inst[1] } : null, createdAt: date });
+      d.transactions = {
+        a: tx('a', '2026-10-20T12:00:00Z', 'Mercado Antigo', 300),
+        b: tx('b', '2026-11-05T12:00:00Z', 'Mercado Bom', 422.48),
+        c: tx('c', '2026-11-10T12:00:00Z', 'Loja X', 68.29, [1, 2])
+      };
+      if (pending) d.transactions.e = tx('e', '2027-01-02T12:00:00Z', 'Loja X', 68.29, [2, 2]);
+      return d;
+    };
+    for (const futuraLancada of [true, false]) {
+      const mm = buildModel(mk(futuraLancada), { now: N });
+      const nu = mm.cards.find((c) => c.nome === 'Nubank');
+      assert.strictEqual(nu.atual.valor, 490.77, 'dezembro (futura lançada=' + futuraLancada + '): ' + nu.atual.valor + ' · ' + nu.atual.fonte);
+      const jan = nu.prox.find((p) => p.key === '2027-01');
+      assert.ok(jan && Math.abs(jan.valor - 68.29) < 0.01, 'janeiro: ' + JSON.stringify(nu.prox));
+    }
+    // Banco que só manda o limite em uso (sem fatura recente): as parcelas futuras saem da conta.
+    for (const futuraLancada of [true, false]) {
+      const d = mk(futuraLancada);
+      d.billsByAccount.cc[0].billClosingDate = '2026-09-01T12:00:00Z';
+      d.billsByAccount.cc[0].dueDate = '2026-09-08T12:00:00Z';
+      d.billsByAccount.cc[0].payments[0].paymentDate = '2026-09-07T12:00:00Z';
+      d.transactions.p = { id: 'p', accountId: 'cc', date: '2026-11-06T12:00:00Z', description: 'Pagamento recebido', type: 'CREDIT', amount: 300, status: 'POSTED', category: 'Credit card payment' };
+      const nu = buildModel(d, { now: N }).cards.find((c) => c.nome === 'Nubank');
+      assert.strictEqual(nu.atual.valor, 490.77, 'pelo limite (futura lançada=' + futuraLancada + '): ' + nu.atual.valor + ' · ' + nu.atual.fonte);
+    }
   });
 
   console.log('\n' + passed + ' testes passaram');

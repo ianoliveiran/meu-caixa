@@ -773,6 +773,10 @@ function shiftMonth(date, n) {
 // - Faturas fechadas: total e pagamentos vêm do banco (quando ele manda).
 // - Fatura atual: o saldo devedor do cartão, que já desconta o que você antecipou.
 // - Faturas antigas que o banco não mandou: o valor pago no cartão perto do vencimento.
+function normKey(x) {
+  return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b\d+\s*(de|\/)\s*\d+\b/g, '').trim();
+}
+
 function buildCard(acc, all, db, mk, now, nome) {
   const cd = acc.creditData || {};
   const st = bankStyle(nome);
@@ -825,19 +829,72 @@ function buildCard(acc, all, db, mk, now, nome) {
   const usadoLimite = cd.creditLimit != null && cd.availableCreditLimit != null
     ? round2(Math.max(0, Number(cd.creditLimit) - Number(cd.availableCreditLimit)))
     : Math.max(0, Number(acc.balance) || 0);
+  // Em que fatura cai cada lançamento. Regra do Open Finance (Pluggy):
+  // - com billId: a fatura que o banco já mandou;
+  // - parcela 2 em diante: vem com a data de lançamento na fatura, que fica no mês do vencimento dela;
+  // - o resto: a fatura do primeiro fechamento a partir da data da compra.
+  const lastBill = bills[bills.length - 1] || null;
+  const gapDays = lastBill && lastBill.closing ? Math.max(1, Math.round(dayDiff(lastBill.due, lastBill.closing))) : 7;
+  const closeDay = lastBill && lastBill.closing ? lastBill.closing.getDate() : (cd.balanceCloseDate ? dayStart(cd.balanceCloseDate).getDate() : new Date(today.getFullYear(), today.getMonth(), dueDay - gapDays).getDate());
+  const dueOfClosing = (c) => new Date(c.getFullYear(), c.getMonth(), c.getDate() + gapDays);
+  const closingFor = (date) => {
+    const d = dayStart(date);
+    const last = (y, mo) => new Date(y, mo + 1, 0).getDate();
+    let c = new Date(d.getFullYear(), d.getMonth(), Math.min(closeDay, last(d.getFullYear(), d.getMonth())));
+    if (c < d) c = new Date(d.getFullYear(), d.getMonth() + 1, Math.min(closeDay, last(d.getFullYear(), d.getMonth() + 1)));
+    return c;
+  };
+  const billById = new Map(bills.map((b) => [b.id, b]));
+  const billMonthOf = (t) => {
+    const bid = t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId;
+    if (bid && billById.has(bid)) return monthKey(billById.get(bid).due);
+    if (t.inst && t.inst.n > 1) return monthKey(t.date);
+    return monthKey(dueOfClosing(closingFor(t.date)));
+  };
+  const porFatura = {};
+  for (const t of txs) {
+    if (!['expense', 'pix_credit', 'fee', 'refund'].includes(t.kind)) continue;
+    const k = billMonthOf(t);
+    porFatura[k] = (porFatura[k] || 0) + (t.kind === 'refund' ? -t.value : Math.abs(t.value));
+  }
+
   let abertaValor;
   let fonte;
+  const openMonth = monthKey(closedOpen ? shiftMonth(closedOpen.due, 1) : nextDue);
+  // Próximas faturas: parcelas que o banco já lançou + as que ainda vão ser lançadas (projeção pelas parcelas que faltam).
+  const futuras = {};
+  let projAberta = 0; // parcela desta fatura que o banco ainda não lançou
+  for (const [k, v] of Object.entries(porFatura)) if (k > openMonth && v > 0.005) futuras[k] = v;
+  const grupos = new Map();
+  for (const t of txs) {
+    if (!t.inst || t.kind !== 'expense') continue;
+    const g = normKey(t.description) + '|' + t.inst.total + '|' + Math.round(Math.abs(t.value) * 100);
+    const cur = grupos.get(g);
+    if (!cur || t.inst.n > cur.inst.n) grupos.set(g, t);
+  }
+  for (const t of grupos.values()) {
+    const base = billMonthOf(t);
+    for (let k = 1; k <= t.inst.total - t.inst.n; k++) {
+      const mkF = addMonths(base, k);
+      if (mkF < openMonth) continue;
+      if (mkF === openMonth) { projAberta += Math.abs(t.value); continue; }
+      futuras[mkF] = (futuras[mkF] || 0) + Math.abs(t.value);
+    }
+  }
   if (lastClosing && dayDiff(today, lastClosing) <= 35) {
-    const abertas = txs.filter((t) => dayStart(t.date) > lastClosing && !(t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId && billIds.has(t.raw.creditCardMetadata.billId)));
+    const abertas = txs.filter((t) => dayStart(t.date) > lastClosing && billMonthOf(t) === openMonth && !(t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId && billIds.has(t.raw.creditCardMetadata.billId)));
     const compras = abertas.filter((t) => ['expense', 'pix_credit', 'fee'].includes(t.kind)).reduce((s, t) => s + Math.abs(t.value), 0);
     const estornos = abertas.filter((t) => t.kind === 'refund').reduce((s, t) => s + t.value, 0);
     const pagos = abertas.filter((t) => t.kind === 'card_payment_in' && !isBillPayment(t)).reduce((s, t) => s + t.value, 0);
-    abertaValor = round2(Math.max(0, compras - estornos - pagos + extraLinhas));
-    fonte = 'Compras depois do fechamento de ' + fmtDay(lastClosing) + (extraLinhas > 0 ? ' + ' + fmtMoney(extraLinhas) + ' do NuPay' : '');
+    abertaValor = round2(Math.max(0, compras - estornos - pagos + extraLinhas + projAberta));
+    fonte = 'Compras depois do fechamento de ' + fmtDay(lastClosing) + (extraLinhas > 0 ? ' + ' + fmtMoney(extraLinhas) + ' do NuPay' : '') + (projAberta > 0.005 ? ' + ' + fmtMoney(projAberta) + ' de parcelas que o banco ainda vai lançar' : '') + ', sem as parcelas das próximas faturas';
   } else {
-    abertaValor = round2(Math.max(0, usadoLimite - restoFechada));
-    fonte = 'Limite em uso informado pelo banco' + (lastClosing ? ' (o último fechamento que ele mandou é de ' + fmtDay(lastClosing) + ')' : '');
+    // O limite em uso já inclui todas as parcelas que faltam (lançadas ou não); elas saem daqui e aparecem nos meses delas.
+    const futurasJa = round2(Object.values(futuras).reduce((s2, v) => s2 + v, 0));
+    abertaValor = round2(Math.max(0, usadoLimite - restoFechada - futurasJa));
+    fonte = 'Limite em uso informado pelo banco' + (futurasJa > 0 ? ', menos ' + fmtMoney(futurasJa) + ' de parcelas das próximas faturas' : '') + (lastClosing ? ' (o último fechamento que ele mandou é de ' + fmtDay(lastClosing) + ')' : '');
   }
+
   const openDue = closedOpen ? shiftMonth(closedOpen.due, 1) : nextDue;
   const atualDue = closedOpen ? closedOpen.due : nextDue;
   const atual = {
@@ -867,11 +924,20 @@ function buildCard(acc, all, db, mk, now, nome) {
     const ml = monthLabel(monthKey(d));
     return ml.curto + (ml.ano !== now.getFullYear() ? ' ' + String(ml.ano).slice(2) : '');
   };
-  const prox = [-2, -1].map((k) => {
+  const passadas = [-2, -1].map((k) => {
     const d = shiftMonth(atualDue, k);
     const info = pastInfo(d);
-    return { key: monthKey(d), mes: label(d), valor: info ? info.total : 0, atual: false, estado: info ? (info.paid ? 'Paga' : 'Fechada') : 'Sem dados' };
-  }).concat([{ key: monthKey(atualDue), mes: label(atualDue), valor: atual.valor, atual: true, estado: atual.estado }]);
+    return info ? { key: monthKey(d), mes: label(d), valor: info.total, atual: false, estado: info.paid ? 'Paga' : 'Fechada' } : null;
+  });
+  const adiante = [{ key: monthKey(atualDue), mes: label(atualDue), valor: atual.valor, atual: true, estado: atual.estado }]
+    .concat(closedOpen && monthKey(openDue) !== monthKey(atualDue) ? [{ key: monthKey(openDue), mes: label(openDue), valor: abertaValor, atual: false, estado: 'Aberta' }] : [])
+    .concat(Object.keys(futuras).sort().filter((k) => k > monthKey(openDue)).slice(0, 3).map((k) => {
+      const [y, mo] = k.split('-').map(Number);
+      return { key: k, mes: label(new Date(y, mo - 1, 1)), valor: round2(futuras[k]), atual: false, estado: 'Parcelas' };
+    }));
+  // Até 5 quadros: a fatura atual, as próximas e, no espaço que sobrar, as passadas (sem os meses sem dados).
+  const cabe = Math.max(0, 5 - adiante.length);
+  const prox = (cabe ? passadas.filter(Boolean).slice(-cabe) : []).concat(adiante);
 
   // Fatura que vence no mês exibido.
   let dueThisMonth = null;
@@ -880,6 +946,8 @@ function buildCard(acc, all, db, mk, now, nome) {
     dueThisMonth = { total: closedOpen.total, dia: closedOpen.due.getDate(), paid: false, paidDate: null, antecipado: closedOpen.pagos, fechada: true };
   } else if (monthKey(openDue) === mk) {
     if (abertaValor > 0.005) dueThisMonth = { total: abertaValor, dia: openDue.getDate(), paid: false, paidDate: null, antecipado: 0, fechada: false, estimada: true };
+  } else if (mk > monthKey(openDue) && futuras[mk] > 0.005) {
+    dueThisMonth = { total: round2(futuras[mk]), dia: mDue.getDate(), paid: false, paidDate: null, antecipado: 0, fechada: false, estimada: true, parcelas: true };
   } else if (mk < monthKey(atualDue)) {
     const info = pastInfo(mDue);
     if (info) dueThisMonth = { total: info.total, dia: mDue.getDate(), paid: info.paid, paidDate: info.lastPay ? fmtDay(info.lastPay) : null, antecipado: 0, fechada: true };

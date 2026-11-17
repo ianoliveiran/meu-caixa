@@ -269,14 +269,14 @@
     const mx = Math.max.apply(null, vals.concat([1]));
     const ys = vals.map((v) => 12 + 40 * (1 - v / mx));
     const last = c.prox.length - 1;
-    return '<div class="months" style="grid-template-columns:repeat(' + c.prox.length + ',minmax(0,1fr))">' + c.prox.map((p, k) => {
+    return '<div class="months" style="grid-template-columns:repeat(' + c.prox.length + ',minmax(78px,1fr))">' + c.prox.map((p, k) => {
       const L = k === 0 ? ys[0] : (ys[k - 1] + ys[k]) / 2;
       const R = k === last ? ys[last] : (ys[k] + ys[k + 1]) / 2;
       const pts = '0,' + L.toFixed(1) + ' 50,' + ys[k].toFixed(1) + ' 100,' + R.toFixed(1);
       const on = !!p.atual;
       const stroke = on ? '#2563eb' : '#94a3b8';
       return '<div class="mbox' + (on ? ' on' : '') + '"><b style="font-size:13px">' + esc(p.mes) + '</b>' +
-        '<span class="pill ' + (on ? 'blue' : (p.estado === 'Paga' ? 'green' : 'gray')) + '" style="font-size:10px;padding:2px 8px">' + esc(p.estado) + '</span>' +
+        '<span class="pill ' + (on ? 'blue' : (p.estado === 'Paga' ? 'green' : p.estado === 'Parcelas' ? 'violet' : 'gray')) + '" style="font-size:10px;padding:2px 8px">' + esc(p.estado) + '</span>' +
         '<div class="chart"><svg aria-hidden="true" viewBox="0 0 100 64" preserveAspectRatio="none">' +
         (on ? '<polygon points="' + pts + ' 100,64 0,64" style="fill:var(--blue-soft)"/>' : '') +
         '<polyline points="' + pts + '" fill="none" stroke="' + stroke + '" stroke-width="2"' + (on ? '' : ' stroke-dasharray="4 4"') + ' vector-effect="non-scaling-stroke"/></svg>' +

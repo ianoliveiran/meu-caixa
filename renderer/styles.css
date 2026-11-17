@@ -91,6 +91,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .pill.blue { color: var(--blue-d); background: #dbeafe; }
 .pill.gray { color: #475569; background: #e2e8f0; }
 .pill.green { color: var(--green-d); background: #dcfce7; }
+.pill.violet { color: #6d28d9; background: #ede9fe; }
 
 .top-bar { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; box-shadow: var(--shadow); }
 .top-bar .left, .top-bar .right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -160,7 +161,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .cc .val { font-weight: 700; font-size: 15px; display: block; }
 .cc.empty { background: #f1f5f9; color: var(--muted); box-shadow: none; border: 2px dashed #cbd5e1; align-items: center; justify-content: center; text-align: center; }
 .round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; display: inline-flex; align-items: center; justify-content: center; }
-.months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; overflow-x: auto; scrollbar-width: thin; }
 .mbox { border: 2px solid #f5f7fb; background: #f5f7fb; border-radius: 14px; padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; }
 .mbox.on { border-color: var(--blue); background: #fff; }
 .mbox .chart { position: relative; width: 100%; height: 64px; }
@@ -392,6 +393,7 @@ html.dark .chip.on { background: var(--blue); color: #fff; }
 html.dark .pill.gray { background: #263048; color: #c4cbd9; }
 html.dark .pill.blue { background: #1a2647; color: #93b4ff; }
 html.dark .pill.green { background: #0f2a1c; color: #4ade80; }
+html.dark .pill.violet { background: #241a45; color: #c4b5fd; }
 html.dark .pill.amber { background: #3a2a0c; color: #fcd34d; }
 html.dark .msg.err { background: #3a1220; color: #fda4af; }
 html.dark .msg.ok { background: #0f2a1c; color: #86efac; }
