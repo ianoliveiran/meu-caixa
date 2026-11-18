@@ -35,7 +35,8 @@ async function runUser(secret, row, vapid) {
     const db = hydrate(current.data);
     const subs = push.ensure(db).subs.length;
     const configured = db.secrets && db.secrets.clientId && !db.settings.demo && (db.settings.items || []).length;
-    const stale = !db.lastSync || Date.now() - new Date(db.lastSync) > 50 * 60 * 1000;
+    // 20 min: os bancos chegam espalhados (ex.: 19h38 a 19h42); com 50 min a busca de hora em hora pulava quem chegou logo depois.
+    const stale = !db.lastSync || Date.now() - new Date(db.lastSync) > 20 * 60 * 1000;
     if (configured && stale) { try { await actions['sync:now'](db, null, env); } catch (e) { /* segue com o que tem */ } }
     if (!subs && !(configured && stale)) return { pulou: true };
     const now = new Date();
