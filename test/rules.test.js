@@ -294,7 +294,7 @@ const byName = (n) => m.lancamentos.find((t) => t.nome.startsWith(n));
     d.transactions = {};
     for (const x of lista) d.transactions[x[0]] = tx(...x);
     const nu = buildModel(d, { now: N }).cards.find((c) => c.nome === 'Nubank');
-    assert.strictEqual(nu.atual.valor, 490.78, 'dezembro: ' + nu.atual.valor + ' · ' + nu.atual.fonte);
+    assert.strictEqual(nu.atual.valor, 490.77, 'dezembro: ' + nu.atual.valor + ' · ' + nu.atual.fonte);
     assert.strictEqual(nu.atual.vence, '03/12');
     const jan = nu.prox.find((p) => p.key === '2027-01');
     assert.ok(jan && Math.abs(jan.valor - 68.29) < 0.01, 'janeiro: ' + JSON.stringify(nu.prox));

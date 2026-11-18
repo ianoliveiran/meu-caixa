@@ -901,13 +901,16 @@ function buildCard(acc, all, db, mk, now, nome) {
     const estornos = doMes.filter((t) => t.kind === 'refund').reduce((s, t) => s + t.value, 0);
     const pagos = doMes.filter((t) => t.kind === 'card_payment_in' && !isBillPayment(t)).reduce((s, t) => s + t.value, 0);
     const valor = round2(Math.max(0, compras - estornos - pagos + projAberta));
-    const depois = Object.entries(porFatura).filter(([k]) => k > openMonth).reduce((s2, [, v]) => s2 + v, 0);
+    const depois = round2(Object.values(futuras).reduce((s2, v) => s2 + v, 0));
     const alvo = usadoLimite + extraLinhas - restoFechada;
-    if (Math.abs(valor + depois - alvo) <= Math.max(30, alvo * 0.05)) previsao = valor;
+    // Bate com o total que o banco diz estar em uso? Então vale o total do banco (ele já inclui IOF, tarifas e
+    // estornos que às vezes não vêm como lançamento), menos o que é dos meses seguintes.
+    if (Math.abs(valor + depois - alvo) <= Math.max(30, alvo * 0.05)) previsao = round2(Math.max(0, alvo - depois));
   }
   if (previsao !== null) {
     abertaValor = previsao;
-    fonte = 'Lançamentos que o banco marcou para esta fatura' + (extraLinhas > 0 ? ', inclusive os do NuPay' : '') + (projAberta > 0.005 ? ' + ' + fmtMoney(projAberta) + ' de parcelas que o banco ainda vai lançar' : '') + '; o que ele marcou para os meses seguintes aparece neles';
+    const depoisTxt = Object.values(futuras).reduce((s2, v) => s2 + v, 0);
+    fonte = 'Total em uso que o banco informa' + (extraLinhas > 0 ? ' (com o NuPay)' : '') + (depoisTxt > 0.005 ? ', menos ' + fmtMoney(depoisTxt) + ' que ele já marcou para as próximas faturas' : '');
   } else if (lastClosing && dayDiff(today, lastClosing) <= 35) {
     const abertas = txs.filter((t) => dayStart(t.date) > lastClosing && billMonthOf(t) === openMonth && !(t.raw.creditCardMetadata && t.raw.creditCardMetadata.billId && billIds.has(t.raw.creditCardMetadata.billId)));
     const compras = abertas.filter((t) => ['expense', 'pix_credit', 'fee'].includes(t.kind)).reduce((s, t) => s + Math.abs(t.value), 0);
